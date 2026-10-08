@@ -1,8 +1,16 @@
-import { z } from 'zod';
+import { z } from "zod";
 
-export const ProfileSchema = z.enum(['FAST', 'DEFAULT', 'MATH']);
+export const ProfileSchema = z.enum(["FAST", "DEFAULT", "MATH"]);
 export type Profile = z.infer<typeof ProfileSchema>;
-export const IntentSchema = z.enum(['EXPLAIN', 'SOLVE', 'PROVE', 'VERIFY', 'COMPUTE', 'SUMMARIZE', 'CODE']);
+export const IntentSchema = z.enum([
+  "EXPLAIN",
+  "SOLVE",
+  "PROVE",
+  "VERIFY",
+  "COMPUTE",
+  "SUMMARIZE",
+  "CODE",
+]);
 export type Intent = z.infer<typeof IntentSchema>;
 
 export const ChatRequestSchema = z.object({
@@ -11,6 +19,18 @@ export const ChatRequestSchema = z.object({
 });
 export type ChatRequest = z.infer<typeof ChatRequestSchema>;
 
-export interface AIRequest { messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>; profile: Profile; intent: Intent; }
-export type AIEvent = { type: 'text'; delta: string } | { type: 'done'; executionId: string; profile: Profile; intent: Intent } | { type: 'error'; message: string };
-export interface Artifact { type: 'markdown' | 'latex' | 'file'; name: string; content?: string; url?: string; }
+export interface AIRequest {
+  messages: Array<{ role: "user" | "assistant" | "system"; content: string }>;
+  profile: Profile;
+  intent: Intent;
+}
+export type AIEvent =
+  | { type: "text"; delta: string }
+  | { type: "done"; executionId: string; profile: Profile; intent: Intent }
+  | { type: "error"; message: string };
+export interface Artifact {
+  type: "markdown" | "latex" | "file";
+  name: string;
+  content?: string;
+  url?: string;
+}
