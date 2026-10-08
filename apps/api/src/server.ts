@@ -27,6 +27,7 @@ app.get("/health", async () => ({
   provider: provider.constructor.name,
   persistence: "postgresql",
 }));
+app.get("/api/analytics/summary", async () => store.analyticsSummary());
 
 app.get("/api/conversations", async () => store.listConversations());
 app.get("/api/conversations/:id/messages", async (request) => {

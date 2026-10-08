@@ -139,6 +139,17 @@ export class DatabaseStore {
   async addFeedback(conversationId: string, rating: "positive" | "negative", category?: string) {
     await this.pool.query("INSERT INTO conversation_feedback (id, conversation_id, rating, category) VALUES ($1, $2, $3, $4)", [crypto.randomUUID(), conversationId, rating, category ?? null]);
   }
+
+  async analyticsSummary() {
+    const [conversations, messages, executions, latency, feedback] = await Promise.all([
+      this.pool.query<{ count: string }>("SELECT count(*)::text AS count FROM conversations WHERE user_id = $1", [this.userId]),
+      this.pool.query<{ count: string }>("SELECT count(*)::text AS count FROM messages m JOIN conversations c ON c.id = m.conversation_id WHERE c.user_id = $1", [this.userId]),
+      this.pool.query<{ count: string }>("SELECT count(*)::text AS count FROM model_executions e JOIN conversations c ON c.id = e.conversation_id WHERE c.user_id = $1", [this.userId]),
+      this.pool.query<{ average: string | null }>("SELECT round(avg(e.latency_ms))::text AS average FROM model_executions e JOIN conversations c ON c.id = e.conversation_id WHERE c.user_id = $1", [this.userId]),
+      this.pool.query<{ rating: string; count: string }>("SELECT rating, count(*)::text AS count FROM conversation_feedback f JOIN conversations c ON c.id = f.conversation_id WHERE c.user_id = $1 GROUP BY rating", [this.userId]),
+    ]);
+    return { conversations: Number(conversations.rows[0].count), messages: Number(messages.rows[0].count), executions: Number(executions.rows[0].count), averageLatencyMs: latency.rows[0].average ? Number(latency.rows[0].average) : null, feedback: Object.fromEntries(feedback.rows.map((row) => [row.rating, Number(row.count)])) };
+  }
 }
 
 export function createDb() {
