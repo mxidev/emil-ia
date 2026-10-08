@@ -31,7 +31,16 @@ type Conversation = {
     <nav class="history" aria-label="Conversaciones">
       <div class="history-heading">
         <span>Conversaciones</span
-        ><button type="button" (click)="newConversation()">Nueva</button>
+        ><span class="history-actions"
+          ><button type="button" (click)="newConversation()">Nueva</button
+          ><button
+            type="button"
+            [disabled]="!conversationId()"
+            (click)="exportConversation()"
+          >
+            Exportar .md
+          </button></span
+        >
       </div>
       <button
         type="button"
@@ -180,6 +189,10 @@ type Conversation = {
         border-color: #2457e6;
         color: #2457e6;
       }
+      .history-actions {
+        display: flex;
+        gap: 6px;
+      }
       .chat {
         flex: 1;
         padding: 42px 8px 24px;
@@ -308,23 +321,23 @@ export class AppComponent {
             displayMode: true,
             throwOnError: false,
           });
-        
+
         if (token.startsWith("$") && token.endsWith("$"))
           return katex.renderToString(token.slice(1, -1), {
             throwOnError: false,
           });
-        
+
         if (token.startsWith("\\(") && token.endsWith("\\)"))
           return katex.renderToString(token.slice(2, -2), {
             throwOnError: false,
           });
-        
+
         if (token.startsWith("\\[") && token.endsWith("\\]"))
           return katex.renderToString(token.slice(2, -2), {
             displayMode: true,
             throwOnError: false,
           });
-        
+
         return marked.parse(token, { async: false }) as string;
       })
       .join("");
@@ -342,6 +355,22 @@ export class AppComponent {
   newConversation() {
     this.conversationId.set(undefined);
     this.messages.set([]);
+  }
+
+  async exportConversation() {
+    const id = this.conversationId();
+    if (!id) return;
+
+    const response = await fetch(
+      `http://localhost:3000/api/conversations/${id}/export.md`,
+    );
+    if (!response.ok) return;
+    
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(await response.blob());
+    link.download = `conversation-${id}.md`;
+    link.click();
+    URL.revokeObjectURL(link.href);
   }
 
   async selectConversation(id: string) {

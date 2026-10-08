@@ -31,17 +31,33 @@ app.get("/api/conversations/:id/messages", async (request) => {
   const params = request.params as { id: string };
   return store.getMessages(params.id);
 });
+app.get("/api/conversations/:id/export.md", async (request, reply) => {
+  const params = request.params as { id: string };
+  const markdown = await store.exportMarkdown(params.id);
+  if (markdown === null) return reply.notFound("Conversación no encontrada");
+  
+  return reply
+    .header("content-type", "text/markdown; charset=utf-8")
+    .header(
+      "content-disposition",
+      `attachment; filename="conversation-${params.id}.md"`,
+    )
+    .send(markdown);
+});
 app.post("/api/tools/python", async (request, reply) => {
   const parsed = SandboxRequestSchema.safeParse(request.body);
   if (!parsed.success)
     return reply.badRequest(JSON.stringify(parsed.error.flatten()));
-  
+
   try {
     return await sandbox.run(parsed.data);
   } catch (error) {
-    return reply.badGateway(JSON.stringify({
-      message: error instanceof Error ? error.message : "Sandbox no disponible",
-    }));
+    return reply.badGateway(
+      JSON.stringify({
+        message:
+          error instanceof Error ? error.message : "Sandbox no disponible",
+      }),
+    );
   }
 });
 

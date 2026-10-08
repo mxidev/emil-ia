@@ -59,7 +59,7 @@ export class DatabaseStore {
   });
 
   private readonly userId = "00000000-0000-4000-8000-000000000001";
-  
+
   async init() {
     await this.pool.query(schema);
     await this.pool.query(
@@ -114,13 +114,25 @@ export class DatabaseStore {
       ],
     );
   }
-  
+
   async listConversations() {
     const result = await this.pool.query(
       'SELECT id, title, created_at AS "createdAt", updated_at AS "updatedAt" FROM conversations WHERE user_id = $1 ORDER BY updated_at DESC',
       [this.userId],
     );
     return result.rows;
+  }
+
+  async exportMarkdown(conversationId: string) {
+    const conversation = await this.pool.query<{ title: string }>(
+      "SELECT title FROM conversations WHERE id = $1 AND user_id = $2",
+      [conversationId, this.userId],
+    );
+
+    if (!conversation.rowCount) return null;
+    
+    const messages = await this.getMessages(conversationId);
+    return `# ${conversation.rows[0].title}\n\n${messages.map((message) => `## ${message.role === "user" ? "Usuario" : "Emil-IA"}\n\n${message.content}`).join("\n\n")}\n`;
   }
 }
 
