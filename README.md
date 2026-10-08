@@ -5,9 +5,21 @@ MVP de un asistente académico para matemáticas e ingeniería. La primera versi
 ## Inicio rápido
 
 1. Copia `.env.example` a `.env` y configura `OPENCODE_API_KEY` si quieres usar el proveedor real.
-2. Ejecuta `docker compose up -d postgres sandbox`.
+2. Con Podman, ejecuta `podman-compose up -d postgres sandbox` (o `docker compose up -d postgres sandbox` si usas Docker).
 3. Ejecuta `npm install`.
 4. Ejecuta `npm run dev` para iniciar la API en `http://localhost:3000`.
 5. En otra terminal ejecuta `npm run dev:web` para iniciar Angular en `http://localhost:4200`.
 
 Sin una clave de proveedor, la API usa el proveedor mock y permite validar todo el flujo localmente.
+
+## Podman en Windows
+
+La configuración utiliza una máquina Podman rootless. Después de instalar Podman:
+
+```powershell
+podman machine start
+podman-compose up -d postgres sandbox
+podman ps
+```
+
+Para detener los servicios: `podman-compose down`. La máquina puede detenerse con `podman machine stop`.
