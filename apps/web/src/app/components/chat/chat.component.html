@@ -1,0 +1,29 @@
+<section class="chat">
+  <div class="welcome" *ngIf="state.messages().length === 0">
+    <div class="hero">¿Qué quieres entender hoy?</div>
+    <p>Pregunta sobre matemáticas, ingeniería o programación. El sistema elegirá la estrategia adecuada y mostrará el razonamiento con Markdown y LaTeX.</p>
+    <div class="suggestions">
+      <button type="button" (click)="useSuggestion('Demuestra que la suma de dos funciones continuas es continua')">Demostración matemática</button>
+      <button type="button" (click)="useSuggestion('Resuelve este sistema de ecuaciones paso a paso')">Resolver un ejercicio</button>
+      <button type="button" (click)="useSuggestion('Explica qué es un autovalor')">Explicación conceptual</button>
+    </div>
+  </div>
+
+  <article *ngFor="let message of state.messages()" [class.user]="message.role === 'user'" [class.assistant]="message.role === 'assistant'">
+    <span class="role">{{ message.role === "user" ? "Tú" : "Emil-IA" }}</span>
+    <div class="content" [innerHTML]="render(message.content)"></div>
+  </article>
+
+  <div class="typing" *ngIf="state.loading()">Emil-IA está pensando…</div>
+  <div class="error" *ngIf="state.error()">{{ state.error() }}</div>
+  <div class="feedback" *ngIf="state.conversationId() && !state.loading() && state.messages().length > 1 && !state.feedbackSent()">
+    <span>¿Te sirvió esta conversación?</span>
+    <button type="button" (click)="state.sendFeedback('positive')">Sí</button>
+    <button type="button" (click)="state.sendFeedback('negative', 'resultado incorrecto')">No</button>
+  </div>
+</section>
+
+<form class="composer" (submit)="$event.preventDefault(); state.send()">
+  <textarea [value]="state.draft()" (input)="state.draft.set($any($event.target).value)" (keydown.enter)="onEnter($event)" placeholder="Escribe tu consulta…" rows="1"></textarea>
+  <button type="submit" [disabled]="state.loading() || !state.draft().trim()">Enviar <span>↵</span></button>
+</form>

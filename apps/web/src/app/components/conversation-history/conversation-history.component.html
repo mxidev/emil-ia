@@ -1,0 +1,33 @@
+<nav class="history" aria-label="Conversaciones">
+  <div class="heading">
+    <span>Conversaciones</span>
+    <span class="actions">
+      <button type="button" (click)="state.startNewConversation()">
+        Nueva
+      </button>
+      <button
+        type="button"
+        [disabled]="!state.conversationId()"
+        (click)="state.exportConversation('md')"
+      >
+        Exportar .md
+      </button>
+      <button
+        type="button"
+        [disabled]="!state.conversationId()"
+        (click)="state.exportConversation('pdf')"
+      >
+        Exportar PDF
+      </button>
+    </span>
+  </div>
+  <button
+    type="button"
+    class="conversation"
+    *ngFor="let conversation of state.conversations()"
+    [class.selected]="conversation.id === state.conversationId()"
+    (click)="state.selectConversation(conversation.id)"
+  >
+    {{ conversation.title }}
+  </button>
+</nav>

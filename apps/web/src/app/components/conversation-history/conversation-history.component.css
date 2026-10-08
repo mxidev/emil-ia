@@ -1,0 +1,47 @@
+.history {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  color: #667085;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.actions {
+  display: flex;
+  gap: 6px;
+}
+
+button {
+  border: 1px solid #d9dfeb;
+  background: #fff;
+  border-radius: 8px;
+  padding: 7px 10px;
+  cursor: pointer;
+  color: #344054;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.conversation {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+}
+
+.conversation.selected {
+  border-color: #2457e6;
+  color: #2457e6;
+}

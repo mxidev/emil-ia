@@ -1,0 +1,22 @@
+:host { display: flex; flex: 1; flex-direction: column; }
+.chat { flex: 1; padding: 42px 8px 24px; }
+.welcome { text-align: center; max-width: 640px; margin: 80px auto 0; }
+.hero { font-size: 34px; font-weight: 700; letter-spacing: -1px; }
+.welcome p { color: #667085; line-height: 1.6; }
+.suggestions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 26px; }
+.suggestions button, .feedback button { border: 1px solid #d9dfeb; background: #fff; border-radius: 10px; padding: 10px 13px; color: #344054; cursor: pointer; }
+.suggestions button:hover { border-color: #2457e6; color: #2457e6; }
+article { max-width: 80%; margin: 18px 0; line-height: 1.6; }
+.user { margin-left: auto; background: #eef3ff; border-radius: 16px 16px 4px 16px; padding: 13px 16px; }
+.assistant { padding: 4px 0; }
+.role { display: block; font-size: 11px; font-weight: 700; color: #667085; margin-bottom: 4px; }
+.content { white-space: pre-wrap; }
+.typing, .error { color: #98a2b3; font-size: 13px; }
+.error { color: #b42318; margin-top: 10px; }
+.feedback { display: flex; align-items: center; gap: 8px; color: #667085; font-size: 12px; margin-top: 14px; }
+.feedback button { border-radius: 8px; padding: 5px 10px; }
+.composer { display: flex; gap: 10px; border: 1px solid #d9dfeb; border-radius: 16px; padding: 8px; background: #fff; box-shadow: 0 5px 24px #1d2a4d0d; }
+.composer textarea { resize: none; border: 0; outline: 0; flex: 1; padding: 11px 9px; font: inherit; max-height: 120px; }
+.composer button { border: 0; background: #2457e6; color: #fff; border-radius: 10px; padding: 0 16px; font-weight: 600; cursor: pointer; }
+.composer button:disabled { opacity: 0.45; cursor: default; }
+@media (max-width: 600px) { .hero { font-size: 28px; } article { max-width: 94%; } }
