@@ -33,7 +33,7 @@ def safe_import(name, globals=None, locals=None, fromlist=(), level=0):
     return importlib.import_module(name)
 
 @app.post('/run')
-def run(request: RunRequest):
+async def run(request: RunRequest):
     validate(request.code)
     result = {}
     def timeout(_signum, _frame):
