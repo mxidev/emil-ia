@@ -20,6 +20,10 @@ app.get("/health", async () => ({
 }));
 
 app.get("/api/conversations", async () => store.listConversations());
+app.get("/api/conversations/:id/messages", async (request) => {
+  const params = request.params as { id: string };
+  return store.getMessages(params.id);
+});
 
 app.post("/api/chat", async (request, reply) => {
   const parsed = ChatRequestSchema.safeParse(request.body);

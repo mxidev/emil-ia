@@ -3,6 +3,7 @@ import { Component, ChangeDetectionStrategy, signal } from "@angular/core";
 import { CommonModule } from "@angular/common";
 
 type Message = { role: "user" | "assistant"; content: string };
+type Conversation = { id: string; title: string; createdAt: string; updatedAt: string };
 
 @Component({
   selector: "app-root",
@@ -20,6 +21,10 @@ type Message = { role: "user" | "assistant"; content: string };
       </div>
       <span class="status">● Local</span>
     </header>
+    <nav class="history" aria-label="Conversaciones">
+      <div class="history-heading"><span>Conversaciones</span><button type="button" (click)="newConversation()">Nueva</button></div>
+      <button type="button" class="conversation" *ngFor="let conversation of conversations()" [class.selected]="conversation.id === conversationId()" (click)="selectConversation(conversation.id)">{{ conversation.title }}</button>
+    </nav>
     <section class="chat">
       <div class="welcome" *ngIf="messages().length === 0">
         <div class="hero">¿Qué quieres entender hoy?</div>
@@ -120,6 +125,11 @@ type Message = { role: "user" | "assistant"; content: string };
         font-size: 12px;
         color: #16a34a;
       }
+      .history { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+      .history-heading { display: flex; align-items: center; justify-content: space-between; width: 100%; color: #667085; font-size: 12px; font-weight: 700; }
+      .history-heading button, .conversation { border: 1px solid #d9dfeb; background: #fff; border-radius: 8px; padding: 7px 10px; cursor: pointer; color: #344054; }
+      .conversation { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
+      .conversation.selected { border-color: #2457e6; color: #2457e6; }
       .chat {
         flex: 1;
         padding: 42px 8px 24px;
@@ -232,8 +242,26 @@ type Message = { role: "user" | "assistant"; content: string };
 })
 export class AppComponent {
   messages = signal<Message[]>([]);
+  conversations = signal<Conversation[]>([]);
+  conversationId = signal<string | undefined>(undefined);
   draft = signal("");
   loading = signal(false);
+
+  constructor() { void this.loadConversations(); }
+
+  async loadConversations() {
+    const response = await fetch("http://localhost:3000/api/conversations");
+    if (response.ok) this.conversations.set(await response.json());
+  }
+
+  newConversation() { this.conversationId.set(undefined); this.messages.set([]); }
+
+  async selectConversation(id: string) {
+    const response = await fetch(`http://localhost:3000/api/conversations/${id}/messages`);
+    if (!response.ok) return;
+    this.conversationId.set(id);
+    this.messages.set(await response.json());
+  }
 
   use(text: string) {
     this.draft.set(text);
@@ -264,9 +292,11 @@ export class AppComponent {
       const response = await fetch("http://localhost:3000/api/chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content, conversationId: this.conversationId() }),
       });
       if (!response.body) throw new Error("La API no devolvió un stream");
+      const returnedConversationId = response.headers.get("x-conversation-id");
+      if (returnedConversationId) this.conversationId.set(returnedConversationId);
       
       const reader = response.body
         .pipeThrough(new TextDecoderStream())
@@ -297,6 +327,7 @@ export class AppComponent {
             );
         }
       }
+      await this.loadConversations();
     } catch (error) {
       this.messages.update((items) =>
         items.map((m, i) =>
