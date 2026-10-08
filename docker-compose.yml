@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: emilia
+      POSTGRES_PASSWORD: emilia
+      POSTGRES_DB: emilia
+    ports: ["5432:5432"]
+    volumes: ["emilia-postgres:/var/lib/postgresql/data"]
+  sandbox:
+    build: ./services/sandbox
+    ports: ["8001:8001"]
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: ["/tmp:size=64m,noexec,nosuid"]
+    networks: [sandbox-net]
+networks:
+  sandbox-net:
+    internal: true
+volumes:
+  emilia-postgres:
