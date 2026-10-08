@@ -99,6 +99,11 @@ type Conversation = {
         ></div>
       </article>
       <div class="typing" *ngIf="loading()">Emil-IA está pensando…</div>
+      <div class="feedback" *ngIf="conversationId() && !loading() && messages().length > 1 && !feedbackSent()">
+        <span>¿Te sirvió esta conversación?</span>
+        <button type="button" (click)="sendFeedback('positive')">Sí</button>
+        <button type="button" (click)="sendFeedback('negative', 'resultado incorrecto')">No</button>
+      </div>
     </section>
     <form class="composer" (submit)="$event.preventDefault(); send()">
       <textarea
@@ -265,6 +270,8 @@ type Conversation = {
         color: #98a2b3;
         font-size: 13px;
       }
+      .feedback { display: flex; align-items: center; gap: 8px; color: #667085; font-size: 12px; margin-top: 14px; }
+      .feedback button { border: 1px solid #d9dfeb; background: #fff; border-radius: 8px; padding: 5px 10px; cursor: pointer; }
       .composer {
         display: flex;
         gap: 10px;
@@ -316,6 +323,7 @@ export class AppComponent {
   conversationId = signal<string | undefined>(undefined);
   draft = signal("");
   loading = signal(false);
+  feedbackSent = signal(false);
 
   renderMarkdown(content: string): string {
     const tokens = content.split(
@@ -362,6 +370,7 @@ export class AppComponent {
   newConversation() {
     this.conversationId.set(undefined);
     this.messages.set([]);
+    this.feedbackSent.set(false);
   }
 
   async exportConversation(format: "md" | "pdf" = "md") {
@@ -387,6 +396,15 @@ export class AppComponent {
     if (!response.ok) return;
     this.conversationId.set(id);
     this.messages.set(await response.json());
+    this.feedbackSent.set(false);
+  }
+
+  async sendFeedback(rating: "positive" | "negative", category?: string) {
+    const id = this.conversationId();
+    if (!id) return;
+    
+    const response = await fetch(`http://localhost:3000/api/conversations/${id}/feedback`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ rating, category }) });
+    if (response.ok) this.feedbackSent.set(true);
   }
 
   use(text: string) {
