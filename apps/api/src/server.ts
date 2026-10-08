@@ -7,6 +7,7 @@ import { routePrompt } from "./router.js";
 import { createProvider } from "./provider.js";
 import { DatabaseStore } from "./db.js";
 import { SandboxClient, SandboxRequestSchema } from "./sandbox.js";
+import PDFDocument from "pdfkit";
 
 dotenv.config({ path: "../../.env" });
 
@@ -43,6 +44,18 @@ app.get("/api/conversations/:id/export.md", async (request, reply) => {
       `attachment; filename="conversation-${params.id}.md"`,
     )
     .send(markdown);
+});
+app.get("/api/conversations/:id/export.pdf", async (request, reply) => {
+  const params = request.params as { id: string };
+  const markdown = await store.exportMarkdown(params.id);
+  if (markdown === null) return reply.notFound("Conversación no encontrada");
+  const document = new PDFDocument({ margin: 54 });
+  const chunks: Buffer[] = [];
+  const finished = new Promise<Buffer>((resolve) => { document.on("data", (chunk: Buffer) => chunks.push(chunk)); document.on("end", () => resolve(Buffer.concat(chunks))); });
+  document.fontSize(11).text(markdown.replace(/^# /, ""));
+  document.end();
+  const pdf = await finished;
+  return reply.header("content-type", "application/pdf").header("content-disposition", `attachment; filename="conversation-${params.id}.pdf"`).send(pdf);
 });
 app.post("/api/tools/python", async (request, reply) => {
   const parsed = SandboxRequestSchema.safeParse(request.body);

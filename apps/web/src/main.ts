@@ -39,6 +39,13 @@ type Conversation = {
             (click)="exportConversation()"
           >
             Exportar .md
+          </button
+          ><button
+            type="button"
+            [disabled]="!conversationId()"
+            (click)="exportConversation('pdf')"
+          >
+            Exportar PDF
           </button></span
         >
       </div>
@@ -357,18 +364,18 @@ export class AppComponent {
     this.messages.set([]);
   }
 
-  async exportConversation() {
+  async exportConversation(format: "md" | "pdf" = "md") {
     const id = this.conversationId();
     if (!id) return;
 
     const response = await fetch(
-      `http://localhost:3000/api/conversations/${id}/export.md`,
+      `http://localhost:3000/api/conversations/${id}/export.${format}`,
     );
     if (!response.ok) return;
     
     const link = document.createElement("a");
     link.href = URL.createObjectURL(await response.blob());
-    link.download = `conversation-${id}.md`;
+    link.download = `conversation-${id}.${format}`;
     link.click();
     URL.revokeObjectURL(link.href);
   }
