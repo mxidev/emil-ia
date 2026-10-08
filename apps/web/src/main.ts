@@ -1,9 +1,16 @@
 import { bootstrapApplication } from "@angular/platform-browser";
 import { Component, ChangeDetectionStrategy, signal } from "@angular/core";
 import { CommonModule } from "@angular/common";
+import { marked } from "marked";
+import katex from "katex";
 
 type Message = { role: "user" | "assistant"; content: string };
-type Conversation = { id: string; title: string; createdAt: string; updatedAt: string };
+type Conversation = {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+};
 
 @Component({
   selector: "app-root",
@@ -22,8 +29,19 @@ type Conversation = { id: string; title: string; createdAt: string; updatedAt: s
       <span class="status">● Local</span>
     </header>
     <nav class="history" aria-label="Conversaciones">
-      <div class="history-heading"><span>Conversaciones</span><button type="button" (click)="newConversation()">Nueva</button></div>
-      <button type="button" class="conversation" *ngFor="let conversation of conversations()" [class.selected]="conversation.id === conversationId()" (click)="selectConversation(conversation.id)">{{ conversation.title }}</button>
+      <div class="history-heading">
+        <span>Conversaciones</span
+        ><button type="button" (click)="newConversation()">Nueva</button>
+      </div>
+      <button
+        type="button"
+        class="conversation"
+        *ngFor="let conversation of conversations()"
+        [class.selected]="conversation.id === conversationId()"
+        (click)="selectConversation(conversation.id)"
+      >
+        {{ conversation.title }}
+      </button>
     </nav>
     <section class="chat">
       <div class="welcome" *ngIf="messages().length === 0">
@@ -59,7 +77,10 @@ type Conversation = { id: string; title: string; createdAt: string; updatedAt: s
         <span class="role">{{
           message.role === "user" ? "Tú" : "Emil-IA"
         }}</span>
-        <div class="content">{{ message.content }}</div>
+        <div
+          class="content"
+          [innerHTML]="renderMarkdown(message.content)"
+        ></div>
       </article>
       <div class="typing" *ngIf="loading()">Emil-IA está pensando…</div>
     </section>
@@ -125,11 +146,40 @@ type Conversation = { id: string; title: string; createdAt: string; updatedAt: s
         font-size: 12px;
         color: #16a34a;
       }
-      .history { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
-      .history-heading { display: flex; align-items: center; justify-content: space-between; width: 100%; color: #667085; font-size: 12px; font-weight: 700; }
-      .history-heading button, .conversation { border: 1px solid #d9dfeb; background: #fff; border-radius: 8px; padding: 7px 10px; cursor: pointer; color: #344054; }
-      .conversation { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
-      .conversation.selected { border-color: #2457e6; color: #2457e6; }
+      .history {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 8px;
+      }
+      .history-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        color: #667085;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .history-heading button,
+      .conversation {
+        border: 1px solid #d9dfeb;
+        background: #fff;
+        border-radius: 8px;
+        padding: 7px 10px;
+        cursor: pointer;
+        color: #344054;
+      }
+      .conversation {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 220px;
+      }
+      .conversation.selected {
+        border-color: #2457e6;
+        color: #2457e6;
+      }
       .chat {
         flex: 1;
         padding: 42px 8px 24px;
@@ -247,17 +297,57 @@ export class AppComponent {
   draft = signal("");
   loading = signal(false);
 
-  constructor() { void this.loadConversations(); }
+  renderMarkdown(content: string): string {
+    const tokens = content.split(
+      /(\$\$[\s\S]*?\$\$|\$[^$\n]+\$|\\\([\s\S]*?\\\)|\\\[[\s\S]*?\\\])/g,
+    );
+    return tokens
+      .map((token) => {
+        if (token.startsWith("$$") && token.endsWith("$$"))
+          return katex.renderToString(token.slice(2, -2), {
+            displayMode: true,
+            throwOnError: false,
+          });
+        
+        if (token.startsWith("$") && token.endsWith("$"))
+          return katex.renderToString(token.slice(1, -1), {
+            throwOnError: false,
+          });
+        
+        if (token.startsWith("\\(") && token.endsWith("\\)"))
+          return katex.renderToString(token.slice(2, -2), {
+            throwOnError: false,
+          });
+        
+        if (token.startsWith("\\[") && token.endsWith("\\]"))
+          return katex.renderToString(token.slice(2, -2), {
+            displayMode: true,
+            throwOnError: false,
+          });
+        
+        return marked.parse(token, { async: false }) as string;
+      })
+      .join("");
+  }
+
+  constructor() {
+    void this.loadConversations();
+  }
 
   async loadConversations() {
     const response = await fetch("http://localhost:3000/api/conversations");
     if (response.ok) this.conversations.set(await response.json());
   }
 
-  newConversation() { this.conversationId.set(undefined); this.messages.set([]); }
+  newConversation() {
+    this.conversationId.set(undefined);
+    this.messages.set([]);
+  }
 
   async selectConversation(id: string) {
-    const response = await fetch(`http://localhost:3000/api/conversations/${id}/messages`);
+    const response = await fetch(
+      `http://localhost:3000/api/conversations/${id}/messages`,
+    );
     if (!response.ok) return;
     this.conversationId.set(id);
     this.messages.set(await response.json());
@@ -292,16 +382,20 @@ export class AppComponent {
       const response = await fetch("http://localhost:3000/api/chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ content, conversationId: this.conversationId() }),
+        body: JSON.stringify({
+          content,
+          conversationId: this.conversationId(),
+        }),
       });
       if (!response.body) throw new Error("La API no devolvió un stream");
       const returnedConversationId = response.headers.get("x-conversation-id");
-      if (returnedConversationId) this.conversationId.set(returnedConversationId);
-      
+      if (returnedConversationId)
+        this.conversationId.set(returnedConversationId);
+
       const reader = response.body
         .pipeThrough(new TextDecoderStream())
         .getReader();
-      
+
       let buffer = "";
       while (true) {
         const { value, done } = await reader.read();

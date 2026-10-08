@@ -16,6 +16,9 @@
             "tsConfig": "tsconfig.app.json",
             "polyfills": [
               "zone.js"
+            ],
+            "styles": [
+              "../../node_modules/katex/dist/katex.min.css"
             ]
           }
         },
