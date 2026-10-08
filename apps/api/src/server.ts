@@ -1,3 +1,4 @@
+import dotenv from "dotenv";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import sensible from "@fastify/sensible";
@@ -6,8 +7,10 @@ import { routePrompt } from "./router.js";
 import { createProvider } from "./provider.js";
 import { DatabaseStore } from "./db.js";
 
+dotenv.config({ path: "../../.env" });
+
 const app = Fastify({ logger: true });
-await app.register(cors, { origin: process.env.CORS_ORIGIN ?? true });
+await app.register(cors, { origin: process.env.CORS_ORIGIN ?? "http://localhost:4200" });
 await app.register(sensible);
 
 const provider = createProvider();
