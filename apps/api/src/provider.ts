@@ -30,10 +30,15 @@ export class OpenCodeProvider implements AIProvider {
     private readonly apiKey: string,
     private readonly baseUrl: string,
     private readonly model: string,
+    private readonly planningTimeoutMs = 10000,
   ) {}
 
   async generate(request: AIRequest): Promise<string> {
-    const response = await this.request(request, false);
+    const response = await this.request(
+      request,
+      false,
+      AbortSignal.timeout(this.planningTimeoutMs),
+    );
     const body = (await response.json()) as {
       choices?: Array<{ message?: { content?: unknown } }>;
     };
@@ -81,7 +86,11 @@ export class OpenCodeProvider implements AIProvider {
     };
   }
 
-  private async request(request: AIRequest, stream: boolean): Promise<Response> {
+  private async request(
+    request: AIRequest,
+    stream: boolean,
+    signal?: AbortSignal,
+  ): Promise<Response> {
     const response = await fetch(
       `${this.baseUrl.replace(/\/$/, "")}/chat/completions`,
       {
@@ -95,6 +104,7 @@ export class OpenCodeProvider implements AIProvider {
           stream,
           messages: request.messages,
         }),
+        signal,
       },
     );
     if (!response.ok) {

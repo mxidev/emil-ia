@@ -7,7 +7,8 @@
     "dev": "npm run dev --workspace @emil-ia/api",
     "dev:web": "npm run start --workspace @emil-ia/web",
     "build": "npm run build --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present && npm run test:sandbox",
+    "test:sandbox": "python -m unittest discover -s services/sandbox -p \"test_*.py\"",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "engines": { "node": ">=24" }

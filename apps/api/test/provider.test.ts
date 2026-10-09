@@ -75,4 +75,27 @@ describe("provider generation", () => {
       "Proveedor IA no devolvió contenido",
     );
   });
+
+  it("aborts a planning request that exceeds its deadline", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((_url: string, init: RequestInit) => {
+        return new Promise((_resolve, reject) => {
+          init.signal?.addEventListener("abort", () => {
+            reject(init.signal?.reason);
+          });
+        });
+      }),
+    );
+    const provider = new OpenCodeProvider(
+      "secret",
+      "https://example.test/v1",
+      "math-model",
+      5,
+    );
+
+    await expect(provider.generate(REQUEST)).rejects.toMatchObject({
+      name: "TimeoutError",
+    });
+  });
 });
