@@ -1,10 +1,15 @@
 import type { AIEvent, AIRequest } from "@emil-ia/contracts";
 
 export interface AIProvider {
+  generate(request: AIRequest): Promise<string | null>;
   stream(request: AIRequest): AsyncIterable<AIEvent>;
 }
 
 export class MockProvider implements AIProvider {
+  async generate(_request: AIRequest): Promise<null> {
+    return null;
+  }
+
   async *stream(request: AIRequest): AsyncIterable<AIEvent> {
     const answer = `Perfil **${request.profile}**.\n\nHe recibido tu consulta y la abordaré como **${request.intent}**.\n\n> Proveedor mock activo: configura OPENCODE_API_KEY para usar el modelo real.`;
     for (const chunk of answer.match(/.{1,32}/gs) ?? []) {
@@ -27,26 +32,22 @@ export class OpenCodeProvider implements AIProvider {
     private readonly model: string,
   ) {}
 
-  async *stream(request: AIRequest): AsyncIterable<AIEvent> {
-    const response = await fetch(
-      `${this.baseUrl.replace(/\/$/, "")}/chat/completions`,
-      {
-        method: "POST",
-        headers: {
-          authorization: `Bearer ${this.apiKey}`,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          model: this.model,
-          stream: true,
-          messages: request.messages,
-        }),
-      },
-    );
+  async generate(request: AIRequest): Promise<string> {
+    const response = await this.request(request, false);
+    const body = (await response.json()) as {
+      choices?: Array<{ message?: { content?: unknown } }>;
+    };
+    const content = body.choices?.[0]?.message?.content;
+    if (typeof content !== "string" || !content.trim()) {
+      throw new Error("Proveedor IA no devolvió contenido");
+    }
+    return content;
+  }
 
-    if (!response.ok || !response.body)
-      throw new Error(`Proveedor IA respondió ${response.status}`);
-    
+  async *stream(request: AIRequest): AsyncIterable<AIEvent> {
+    const response = await this.request(request, true);
+    if (!response.body) throw new Error("Proveedor IA no devolvió contenido");
+
     const reader = response.body
       .pipeThrough(new TextDecoderStream())
       .getReader();
@@ -78,6 +79,28 @@ export class OpenCodeProvider implements AIProvider {
       profile: request.profile,
       intent: request.intent,
     };
+  }
+
+  private async request(request: AIRequest, stream: boolean): Promise<Response> {
+    const response = await fetch(
+      `${this.baseUrl.replace(/\/$/, "")}/chat/completions`,
+      {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${this.apiKey}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          model: this.model,
+          stream,
+          messages: request.messages,
+        }),
+      },
+    );
+    if (!response.ok) {
+      throw new Error(`Proveedor IA respondió ${response.status}`);
+    }
+    return response;
   }
 }
 
