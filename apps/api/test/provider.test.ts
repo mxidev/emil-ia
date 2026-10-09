@@ -26,11 +26,16 @@ async function collect(provider: OpenCodeProvider) {
 
 function streamingResponse(chunks: string[]): Response {
   const encoder = new TextEncoder();
+  let index = 0;
   return new Response(
     new ReadableStream({
-      start(controller) {
-        for (const chunk of chunks) controller.enqueue(encoder.encode(chunk));
-        controller.close();
+      pull(controller) {
+        const chunk = chunks[index++];
+        if (chunk) {
+          controller.enqueue(encoder.encode(chunk));
+        } else {
+          controller.close();
+        }
       },
     }),
     { status: 200, headers: { "content-type": "text/event-stream" } },
@@ -75,7 +80,6 @@ describe("provider generation", () => {
           model: "math-model",
           stream: false,
           max_tokens: 2048,
-          stream_options: { include_usage: true },
           messages: REQUEST.messages,
         }),
       }),
@@ -181,6 +185,85 @@ describe("provider generation", () => {
         outputTokens: 5,
       }),
     ]);
+  });
+
+  it("accepts an SSE CRLF delimiter split across chunks", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        streamingResponse([
+          'data: {"choices":[{"delta":{"content":"Hola"}}]}\r',
+          "\n\r\n",
+          "data: [DONE]\r\n\r\n",
+        ]),
+      ),
+    );
+    const provider = new OpenCodeProvider(
+      "secret",
+      "https://example.test/v1",
+      "math-model",
+    );
+
+    await expect(collect(provider)).resolves.toEqual([
+      { type: "text", delta: "Hola" },
+      expect.objectContaining({ type: "done" }),
+    ]);
+  });
+
+  it("cancels an open stream after receiving [DONE]", async () => {
+    const encoder = new TextEncoder();
+    let cancelled = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+            },
+            cancel() {
+              cancelled = true;
+            },
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+    const provider = new OpenCodeProvider(
+      "secret",
+      "https://example.test/v1",
+      "math-model",
+    );
+
+    await collect(provider);
+
+    expect(cancelled).toBe(true);
+  });
+
+  it("keeps the planning deadline while its response body is pending", async () => {
+    vi.useFakeTimers();
+    let signal: AbortSignal | undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((_url: string, init: RequestInit) => {
+        signal = init.signal ?? undefined;
+        return Promise.resolve({
+          ok: true,
+          json: () => new Promise(() => {}),
+        } as Response);
+      }),
+    );
+    const provider = new OpenCodeProvider(
+      "secret",
+      "https://example.test/v1",
+      "math-model",
+      5,
+    );
+
+    void provider.generate(REQUEST);
+    await vi.advanceTimersByTimeAsync(5);
+
+    expect(signal?.aborted).toBe(true);
   });
 
   it("rejects an upstream SSE error instead of completing the response", async () => {

@@ -10,7 +10,7 @@ Make the existing OpenCode Go Chat Completions adapter reliable and observable f
 - Use `https://opencode.ai/zen/go/v1` as the provider fallback URL.
 - Add `OPENCODE_CONNECT_TIMEOUT_SECONDS` (default `15`, allowed `1`–`60`), `OPENCODE_STREAM_IDLE_TIMEOUT_SECONDS` (default `60`, allowed `5`–`300`), and `OPENCODE_MAX_TOKENS` (default `2048`, allowed `128`–`8192`). Invalid values fall back to their defaults.
 - Apply the connection timeout only until response headers arrive. Apply the idle timeout to each pending streamed read; timeout cancels the reader and produces a clear provider error.
-- Send `max_tokens` and `stream_options: { include_usage: true }` with Chat Completions requests. The non-streaming calculation planner uses the same output limit and existing 10-second planning deadline.
+- Send `max_tokens` with Chat Completions requests and `stream_options: { include_usage: true }` only for streamed requests. The non-streaming calculation planner uses the same output limit and existing 10-second planning deadline.
 
 ## Streaming and Telemetry
 

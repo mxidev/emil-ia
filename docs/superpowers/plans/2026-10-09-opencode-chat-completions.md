@@ -39,7 +39,7 @@
 - Produces: `AIEvent` `done` variant with optional `inputTokens?: number` and `outputTokens?: number`.
 - Produces: `OpenCodeProvider` configured by validated connect, idle, and output-token limits.
 
-- [ ] Write failing provider tests for default URL/config fallback, `max_tokens` and usage request payload, fragmented SSE text, `[DONE]`, usage extraction, provider error payload, connection timeout, and idle read timeout.
+- [ ] Write failing provider tests for default URL/config fallback, `max_tokens` and streaming usage request payload, fragmented SSE text, `[DONE]`, usage extraction, provider error payload, connection timeout, and idle read timeout.
 - [ ] Run `npm run test --workspace @emil-ia/api -- provider.test.ts`; confirm the parser/config behaviors fail.
 - [ ] Implement bounded request setup, record-delimited SSE parsing, usage extraction, safe error conversion, and cancellation of idle reads.
 - [ ] Run the focused provider tests and API typecheck.

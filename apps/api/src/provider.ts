@@ -48,19 +48,28 @@ export class OpenCodeProvider implements AIProvider {
   ) {}
 
   async generate(request: AIRequest): Promise<string> {
-    const response = await this.request(request, false, this.planningTimeoutMs);
-    const body = (await response.json()) as {
-      choices?: Array<{ message?: { content?: unknown } }>;
-    };
-    const content = body.choices?.[0]?.message?.content;
-    if (typeof content !== "string" || !content.trim()) {
-      throw new Error("Proveedor IA no devolvió contenido");
+    const { response, clearTimeout } = await this.request(
+      request,
+      false,
+      this.planningTimeoutMs,
+      true,
+    );
+    try {
+      const body = (await response.json()) as {
+        choices?: Array<{ message?: { content?: unknown } }>;
+      };
+      const content = body.choices?.[0]?.message?.content;
+      if (typeof content !== "string" || !content.trim()) {
+        throw new Error("Proveedor IA no devolvió contenido");
+      }
+      return content;
+    } finally {
+      clearTimeout();
     }
-    return content;
   }
 
   async *stream(request: AIRequest): AsyncIterable<AIEvent> {
-    const response = await this.request(
+    const { response } = await this.request(
       request,
       true,
       this.options.connectTimeoutMs,
@@ -81,7 +90,8 @@ export class OpenCodeProvider implements AIProvider {
         const { value, done } = await this.readWithIdleTimeout(reader);
         if (done) break;
 
-        buffer += value.replace(/\r\n/g, "\n");
+        buffer += value;
+        buffer = buffer.replace(/\r\n/g, "\n");
         const records = buffer.split("\n\n");
         buffer = records.pop() ?? "";
 
@@ -114,6 +124,11 @@ export class OpenCodeProvider implements AIProvider {
         }
       }
     } finally {
+      try {
+        await reader.cancel();
+      } catch {
+        // Preserve the provider error instead of replacing it with cleanup failure.
+      }
       reader.releaseLock();
     }
 
@@ -132,15 +147,15 @@ export class OpenCodeProvider implements AIProvider {
     request: AIRequest,
     stream: boolean,
     timeoutMs: number,
-  ): Promise<Response> {
+    keepTimeoutUntilBodyRead = false,
+  ): Promise<{ response: Response; clearTimeout: () => void }> {
     const controller = new AbortController();
     const timer = setTimeout(
       () => controller.abort(new DOMException("Timeout", "TimeoutError")),
       timeoutMs,
     );
-    let response: Response;
     try {
-      response = await fetch(
+      const response = await fetch(
         `${this.baseUrl.replace(/\/$/, "")}/chat/completions`,
         {
           method: "POST",
@@ -152,19 +167,22 @@ export class OpenCodeProvider implements AIProvider {
             model: this.model,
             stream,
             max_tokens: this.options.maxTokens,
-            stream_options: { include_usage: true },
+            ...(stream ? { stream_options: { include_usage: true } } : {}),
             messages: request.messages,
           }),
           signal: controller.signal,
         },
       );
-    } finally {
+      if (!response.ok) {
+        throw new Error(`Proveedor IA respondió ${response.status}`);
+      }
+      const clearRequestTimeout = () => clearTimeout(timer);
+      if (!keepTimeoutUntilBodyRead) clearRequestTimeout();
+      return { response, clearTimeout: clearRequestTimeout };
+    } catch (error) {
       clearTimeout(timer);
+      throw error;
     }
-    if (!response.ok) {
-      throw new Error(`Proveedor IA respondió ${response.status}`);
-    }
-    return response;
   }
 
   private async readWithIdleTimeout(
