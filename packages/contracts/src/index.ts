@@ -26,7 +26,14 @@ export interface AIRequest {
 }
 export type AIEvent =
   | { type: "text"; delta: string }
-  | { type: "done"; executionId: string; profile: Profile; intent: Intent }
+  | {
+      type: "done";
+      executionId: string;
+      profile: Profile;
+      intent: Intent;
+      inputTokens?: number;
+      outputTokens?: number;
+    }
   | { type: "error"; message: string };
 export interface Artifact {
   type: "markdown" | "latex" | "file";

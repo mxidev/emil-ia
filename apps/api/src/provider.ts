@@ -5,6 +5,19 @@ export interface AIProvider {
   stream(request: AIRequest): AsyncIterable<AIEvent>;
 }
 
+export interface OpenCodeProviderOptions {
+  connectTimeoutMs: number;
+  idleTimeoutMs: number;
+  maxTokens: number;
+}
+
+const DEFAULT_BASE_URL = "https://opencode.ai/zen/go/v1";
+const DEFAULT_OPTIONS: OpenCodeProviderOptions = {
+  connectTimeoutMs: 15000,
+  idleTimeoutMs: 60000,
+  maxTokens: 2048,
+};
+
 export class MockProvider implements AIProvider {
   async generate(_request: AIRequest): Promise<null> {
     return null;
@@ -31,14 +44,11 @@ export class OpenCodeProvider implements AIProvider {
     private readonly baseUrl: string,
     private readonly model: string,
     private readonly planningTimeoutMs = 10000,
+    private readonly options: OpenCodeProviderOptions = DEFAULT_OPTIONS,
   ) {}
 
   async generate(request: AIRequest): Promise<string> {
-    const response = await this.request(
-      request,
-      false,
-      AbortSignal.timeout(this.planningTimeoutMs),
-    );
+    const response = await this.request(request, false, this.planningTimeoutMs);
     const body = (await response.json()) as {
       choices?: Array<{ message?: { content?: unknown } }>;
     };
@@ -50,7 +60,11 @@ export class OpenCodeProvider implements AIProvider {
   }
 
   async *stream(request: AIRequest): AsyncIterable<AIEvent> {
-    const response = await this.request(request, true);
+    const response = await this.request(
+      request,
+      true,
+      this.options.connectTimeoutMs,
+    );
     if (!response.body) throw new Error("Proveedor IA no devolvió contenido");
 
     const reader = response.body
@@ -58,59 +72,138 @@ export class OpenCodeProvider implements AIProvider {
       .getReader();
 
     let buffer = "";
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
+    let sawDone = false;
+    let inputTokens: number | undefined;
+    let outputTokens: number | undefined;
 
-      buffer += value;
-      for (const line of buffer.split("\n")) {
-        if (!line.startsWith("data: ")) continue;
+    try {
+      while (!sawDone) {
+        const { value, done } = await this.readWithIdleTimeout(reader);
+        if (done) break;
 
-        const data = line.slice(6).trim();
-        if (data === "[DONE]") continue;
-        
-        try {
-          const delta = JSON.parse(data).choices?.[0]?.delta?.content;
-          if (delta) yield { type: "text", delta };
-        } catch {
-          /* fragmento SSE incompleto */
+        buffer += value.replace(/\r\n/g, "\n");
+        const records = buffer.split("\n\n");
+        buffer = records.pop() ?? "";
+
+        for (const record of records) {
+          const data = record
+            .split("\n")
+            .filter((line) => line.startsWith("data:"))
+            .map((line) => line.slice(5).trimStart())
+            .join("\n");
+          if (!data) continue;
+          if (data === "[DONE]") {
+            sawDone = true;
+            break;
+          }
+
+          const payload = this.parseSsePayload(data);
+          if (this.isProviderError(payload)) {
+            throw new Error("Proveedor IA devolvió un error");
+          }
+          if (typeof payload.usage?.prompt_tokens === "number") {
+            inputTokens = payload.usage.prompt_tokens;
+          }
+          if (typeof payload.usage?.completion_tokens === "number") {
+            outputTokens = payload.usage.completion_tokens;
+          }
+          const delta = payload.choices?.[0]?.delta?.content;
+          if (typeof delta === "string" && delta) {
+            yield { type: "text", delta };
+          }
         }
       }
-      buffer = buffer.slice(buffer.lastIndexOf("\n") + 1);
+    } finally {
+      reader.releaseLock();
     }
+
+    if (!sawDone) throw new Error("Proveedor IA terminó sin [DONE]");
     yield {
       type: "done",
       executionId: crypto.randomUUID(),
       profile: request.profile,
       intent: request.intent,
+      inputTokens,
+      outputTokens,
     };
   }
 
   private async request(
     request: AIRequest,
     stream: boolean,
-    signal?: AbortSignal,
+    timeoutMs: number,
   ): Promise<Response> {
-    const response = await fetch(
-      `${this.baseUrl.replace(/\/$/, "")}/chat/completions`,
-      {
-        method: "POST",
-        headers: {
-          authorization: `Bearer ${this.apiKey}`,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          model: this.model,
-          stream,
-          messages: request.messages,
-        }),
-        signal,
-      },
+    const controller = new AbortController();
+    const timer = setTimeout(
+      () => controller.abort(new DOMException("Timeout", "TimeoutError")),
+      timeoutMs,
     );
+    let response: Response;
+    try {
+      response = await fetch(
+        `${this.baseUrl.replace(/\/$/, "")}/chat/completions`,
+        {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${this.apiKey}`,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            model: this.model,
+            stream,
+            max_tokens: this.options.maxTokens,
+            stream_options: { include_usage: true },
+            messages: request.messages,
+          }),
+          signal: controller.signal,
+        },
+      );
+    } finally {
+      clearTimeout(timer);
+    }
     if (!response.ok) {
       throw new Error(`Proveedor IA respondió ${response.status}`);
     }
     return response;
+  }
+
+  private async readWithIdleTimeout(
+    reader: ReadableStreamDefaultReader<string>,
+  ): Promise<ReadableStreamReadResult<string>> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        reader.read(),
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(() => {
+            reject(new Error("Proveedor IA agotó el tiempo de inactividad"));
+          void reader.cancel();
+          }, this.options.idleTimeoutMs);
+        }),
+      ]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
+  private parseSsePayload(data: string): {
+    choices?: Array<{ delta?: { content?: unknown } }>;
+    usage?: { prompt_tokens?: unknown; completion_tokens?: unknown };
+    error?: unknown;
+  } {
+    try {
+      return JSON.parse(data) as {
+        choices?: Array<{ delta?: { content?: unknown } }>;
+        usage?: { prompt_tokens?: unknown; completion_tokens?: unknown };
+        error?: unknown;
+      };
+    } catch {
+      throw new Error("Proveedor IA devolvió SSE inválido");
+    }
+  }
+
+  private isProviderError(payload: { error?: unknown }): boolean {
+    return payload.error !== undefined;
   }
 }
 
@@ -118,8 +211,45 @@ export function createProvider(): AIProvider {
   return process.env.OPENCODE_API_KEY && process.env.OPENCODE_MODEL
     ? new OpenCodeProvider(
         process.env.OPENCODE_API_KEY,
-        process.env.OPENCODE_BASE_URL ?? "https://opencode.ai/api",
+        process.env.OPENCODE_BASE_URL || DEFAULT_BASE_URL,
         process.env.OPENCODE_MODEL,
+        10000,
+        {
+          connectTimeoutMs: readBoundedSeconds(
+            "OPENCODE_CONNECT_TIMEOUT_SECONDS",
+            15,
+            1,
+            60,
+          ) * 1000,
+          idleTimeoutMs: readBoundedSeconds(
+            "OPENCODE_STREAM_IDLE_TIMEOUT_SECONDS",
+            60,
+            5,
+            300,
+          ) * 1000,
+          maxTokens: readBoundedInteger("OPENCODE_MAX_TOKENS", 2048, 128, 8192),
+        },
       )
     : new MockProvider();
+}
+
+function readBoundedSeconds(
+  name: string,
+  fallback: number,
+  min: number,
+  max: number,
+): number {
+  return readBoundedInteger(name, fallback, min, max);
+}
+
+function readBoundedInteger(
+  name: string,
+  fallback: number,
+  min: number,
+  max: number,
+): number {
+  const value = Number(process.env[name]);
+  return Number.isInteger(value) && value >= min && value <= max
+    ? value
+    : fallback;
 }
