@@ -8,7 +8,7 @@ afterEach(() => {
 });
 
 describe("ConversationRepository execution metadata", () => {
-  it("writes sandbox metadata to the existing JSONB column", async () => {
+  it("writes usage and sandbox metadata to their existing columns", async () => {
     vi.stubEnv("OPENCODE_API_KEY", "");
     vi.stubEnv("OPENCODE_MODEL", "");
     const calls: Array<{ sql: string; parameters: unknown[] | undefined }> = [];
@@ -26,6 +26,8 @@ describe("ConversationRepository execution metadata", () => {
       profile: "MATH",
       intent: "COMPUTE",
       latencyMs: 25,
+      inputTokens: 12,
+      outputTokens: 34,
       metadata: { sandbox: { status: "success" } },
     });
 
@@ -40,6 +42,8 @@ describe("ConversationRepository execution metadata", () => {
           "MATH",
           "COMPUTE",
           25,
+          12,
+          34,
           { sandbox: { status: "success" } },
         ],
       },

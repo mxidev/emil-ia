@@ -11,6 +11,8 @@ export interface ModelExecutionRecord {
   profile: string;
   intent: string;
   latencyMs: number;
+  inputTokens?: number;
+  outputTokens?: number;
   metadata?: { sandbox: { status: SandboxStatus } };
 }
 

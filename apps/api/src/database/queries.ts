@@ -10,7 +10,7 @@ export const DATABASE_QUERIES = {
   getMessages:
     "SELECT role, content FROM messages WHERE conversation_id = $1 ORDER BY created_at ASC",
   recordExecution:
-    "INSERT INTO model_executions (id, conversation_id, provider, model, profile, intent, latency_ms, metadata) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+    "INSERT INTO model_executions (id, conversation_id, provider, model, profile, intent, latency_ms, input_tokens, output_tokens, metadata) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
   listConversations:
     'SELECT id, title, created_at AS "createdAt", updated_at AS "updatedAt" FROM conversations WHERE user_id = $1 ORDER BY updated_at DESC',
   findConversationTitle:

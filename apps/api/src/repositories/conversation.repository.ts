@@ -59,6 +59,8 @@ export class ConversationRepository {
       data.profile,
       data.intent,
       data.latencyMs,
+      data.inputTokens ?? null,
+      data.outputTokens ?? null,
       data.metadata ?? null,
     ]);
   }

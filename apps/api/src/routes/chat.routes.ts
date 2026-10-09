@@ -12,6 +12,7 @@ export function registerChatRoutes(
       return reply.badRequest(JSON.stringify(parsed.error.flatten()));
     }
 
+    const startedAt = Date.now();
     const context = await chat.prepare(
       parsed.data.content,
       parsed.data.conversationId,
@@ -24,7 +25,6 @@ export function registerChatRoutes(
     });
 
     let answer = "";
-    const startedAt = Date.now();
     try {
       for await (const event of context.events) {
         if (event.type === "text") {
@@ -41,6 +41,8 @@ export function registerChatRoutes(
             intent: context.intent,
             latencyMs: Date.now() - startedAt,
             sandboxStatus: context.sandboxStatus,
+            inputTokens: event.inputTokens,
+            outputTokens: event.outputTokens,
           });
           reply.raw.write(
             `event: done\ndata: ${JSON.stringify({ ...event, conversationId: context.conversationId })}\n\n`,

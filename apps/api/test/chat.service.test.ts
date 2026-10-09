@@ -135,10 +135,14 @@ describe("ChatService math verification", () => {
       intent: "COMPUTE",
       latencyMs: 25,
       sandboxStatus: "success",
+      inputTokens: 12,
+      outputTokens: 34,
     });
 
     expect(repository.executions).toEqual([
       expect.objectContaining({
+        inputTokens: 12,
+        outputTokens: 34,
         metadata: { sandbox: { status: "success" } },
       }),
     ]);

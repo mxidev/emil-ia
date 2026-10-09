@@ -55,6 +55,8 @@ export class ChatService {
     intent: Intent;
     latencyMs: number;
     sandboxStatus: SandboxStatus;
+    inputTokens?: number;
+    outputTokens?: number;
   }): Promise<void> {
     await this.repository.addMessage(data.conversationId, {
       role: "assistant",
@@ -66,6 +68,8 @@ export class ChatService {
       profile: data.profile,
       intent: data.intent,
       latencyMs: data.latencyMs,
+      inputTokens: data.inputTokens,
+      outputTokens: data.outputTokens,
       metadata: { sandbox: { status: data.sandboxStatus } },
     });
   }
