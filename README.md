@@ -20,6 +20,13 @@ El adaptador actual usa el protocolo OpenAI Chat Completions. Configura en
 requieren Responses API o el protocolo Anthropic todavía no están soportados;
 consulta la [lista vigente de endpoints de OpenCode Go](https://docs.opencode.ai/docs/go/).
 
+El adaptador acepta solamente Chat Completions y aplica límites locales antes de
+enviar una solicitud: `OPENCODE_CONNECT_TIMEOUT_SECONDS` (15; entre 1 y 60),
+`OPENCODE_STREAM_IDLE_TIMEOUT_SECONDS` (60; entre 5 y 300) y
+`OPENCODE_MAX_TOKENS` (2048; entre 128 y 8192). Los valores inválidos vuelven a
+su valor predeterminado. El límite de conexión cubre hasta recibir cabeceras; el
+de inactividad se reinicia con cada fragmento SSE recibido.
+
 Las consultas clasificadas como `SOLVE`, `VERIFY` o `COMPUTE` generan un único
 cálculo Python, lo ejecutan en el sandbox aislado y muestran un resumen del
 resultado verificado. Si el plan o el sandbox fallan, el chat continúa con una
