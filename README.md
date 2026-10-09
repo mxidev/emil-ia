@@ -12,6 +12,20 @@ MVP de un asistente académico para matemáticas e ingeniería. La primera versi
 
 Sin una clave de proveedor, la API usa el proveedor mock y permite validar todo el flujo localmente.
 
+## Proveedor real y verificación matemática
+
+El adaptador actual usa el protocolo OpenAI Chat Completions. Configura en
+`.env` un modelo de OpenCode Go compatible, junto con `OPENCODE_API_KEY`,
+`OPENCODE_MODEL` y la URL base incluida en `.env.example`. Los modelos que
+requieren Responses API o el protocolo Anthropic todavía no están soportados;
+consulta la [lista vigente de endpoints de OpenCode Go](https://docs.opencode.ai/docs/go/).
+
+Las consultas clasificadas como `SOLVE`, `VERIFY` o `COMPUTE` generan un único
+cálculo Python, lo ejecutan en el sandbox aislado y muestran un resumen del
+resultado verificado. Si el plan o el sandbox fallan, el chat continúa con una
+advertencia. Con el proveedor mock, la respuesta indica que la verificación
+automática requiere un proveedor real y nunca simula un resultado.
+
 ## Podman en Windows
 
 La configuración utiliza una máquina Podman rootless. Después de instalar Podman:
