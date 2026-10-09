@@ -1,3 +1,5 @@
+import type { SandboxStatus } from "./math-verification.interface.js";
+
 export interface StoredMessage {
   role: "user" | "assistant";
   content: string;
@@ -26,5 +28,3 @@ export interface AnalyticsSummary {
   averageLatencyMs: number | null;
   feedback: Record<string, number>;
 }
-import type { SandboxStatus } from "./math-verification.interface.js";
-
