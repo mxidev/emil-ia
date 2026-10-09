@@ -7,13 +7,19 @@ export const SandboxRequestSchema = z.object({
 
 export type SandboxRequest = z.infer<typeof SandboxRequestSchema>;
 
+export const SandboxResponseSchema = z.object({
+  ok: z.literal(true),
+  variables: z.record(z.string()),
+});
+export type SandboxResponse = z.infer<typeof SandboxResponseSchema>;
+
 export class SandboxClient {
   constructor(
     private readonly baseUrl = process.env.SANDBOX_URL ??
       "http://localhost:8001",
   ) {}
 
-  async run(request: SandboxRequest) {
+  async run(request: SandboxRequest): Promise<SandboxResponse> {
     const response = await fetch(`${this.baseUrl}/run`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -24,17 +30,29 @@ export class SandboxClient {
       signal: AbortSignal.timeout((request.timeoutSeconds + 2) * 1000),
     });
 
-    const body = await response
+    const body: unknown = await response
       .json()
       .catch(() => ({ detail: "Respuesta inválida del sandbox" }));
-    
-      if (!response.ok)
+
+    if (!response.ok) {
       throw new Error(
-        typeof body.detail === "string"
+        this.hasDetail(body)
           ? body.detail
           : `Sandbox respondió ${response.status}`,
       );
-    
-    return body as { ok: boolean; variables: Record<string, string> };
+    }
+
+    const parsed = SandboxResponseSchema.safeParse(body);
+    if (!parsed.success) throw new Error("Respuesta inválida del sandbox");
+    return parsed.data;
+  }
+
+  private hasDetail(body: unknown): body is { detail: string } {
+    return (
+      typeof body === "object" &&
+      body !== null &&
+      "detail" in body &&
+      typeof body.detail === "string"
+    );
   }
 }
