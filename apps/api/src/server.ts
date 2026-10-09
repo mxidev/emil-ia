@@ -12,6 +12,7 @@ import { registerToolRoutes } from "./routes/tool.routes.js";
 import { SandboxClient } from "./sandbox.js";
 import { ChatService } from "./services/chat.service.js";
 import { ExportService } from "./services/export.service.js";
+import { MathVerificationService } from "./services/math-verification.service.js";
 
 dotenv.config({ path: "../../.env" });
 
@@ -23,9 +24,10 @@ await app.register(sensible);
 
 const provider = createProvider();
 const repository = new ConversationRepository(createPostgresPool());
-const chatService = new ChatService(repository, provider);
-const exportService = new ExportService(repository);
 const sandbox = new SandboxClient();
+const mathVerification = new MathVerificationService(provider, sandbox, app.log);
+const chatService = new ChatService(repository, provider, mathVerification);
+const exportService = new ExportService(repository);
 
 app.get("/health", async () => ({
   status: "ok",

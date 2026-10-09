@@ -55,10 +55,11 @@ export class ConversationRepository {
       data.id,
       data.conversationId,
       process.env.OPENCODE_API_KEY ? "opencode" : "mock",
-      process.env.OPENCODE_MODEL ?? null,
+      process.env.OPENCODE_MODEL || null,
       data.profile,
       data.intent,
       data.latencyMs,
+      data.metadata ?? null,
     ]);
   }
 

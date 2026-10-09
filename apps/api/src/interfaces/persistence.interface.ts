@@ -9,6 +9,7 @@ export interface ModelExecutionRecord {
   profile: string;
   intent: string;
   latencyMs: number;
+  metadata?: { sandbox: { status: SandboxStatus } };
 }
 
 export interface ConversationSummary {
@@ -25,3 +26,5 @@ export interface AnalyticsSummary {
   averageLatencyMs: number | null;
   feedback: Record<string, number>;
 }
+import type { SandboxStatus } from "./math-verification.interface.js";
+

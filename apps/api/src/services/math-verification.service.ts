@@ -1,7 +1,16 @@
 import type { AIRequest, Intent, Profile } from "@emil-ia/contracts";
 import { z } from "zod";
+import type {
+  MathVerificationResult,
+  SandboxStatus,
+} from "../interfaces/math-verification.interface.js";
 import type { AIProvider } from "../provider.js";
 import type { SandboxClient } from "../sandbox.js";
+
+export type {
+  MathVerificationResult,
+  SandboxStatus,
+} from "../interfaces/math-verification.interface.js";
 
 const CalculationPlanSchema = z
   .object({ code: z.string().min(1).max(12000) })
@@ -20,19 +29,6 @@ const MOCK_FOOTER =
   "\n\n> La verificación automática requiere un proveedor de IA real configurado.";
 const PLANNER_INSTRUCTION =
   'Genera un único cálculo Python para verificar la consulta. Responde solo JSON con la forma {"code":"..."}, sin Markdown. El código debe asignar un resultado breve a la variable result. Usa únicamente sympy, numpy, scipy o matplotlib y no incluyas explicaciones.';
-
-export type SandboxStatus =
-  | "not_applicable"
-  | "success"
-  | "planning_failed"
-  | "sandbox_failed"
-  | "skipped_mock";
-
-export interface MathVerificationResult {
-  status: SandboxStatus;
-  systemMessage?: string;
-  footer?: string;
-}
 
 interface VerificationLogger {
   warn(context: { status: SandboxStatus }, message: string): void;

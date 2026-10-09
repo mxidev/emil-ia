@@ -40,6 +40,7 @@ export function registerChatRoutes(
             profile: context.profile,
             intent: context.intent,
             latencyMs: Date.now() - startedAt,
+            sandboxStatus: context.sandboxStatus,
           });
           reply.raw.write(
             `event: done\ndata: ${JSON.stringify({ ...event, conversationId: context.conversationId })}\n\n`,
