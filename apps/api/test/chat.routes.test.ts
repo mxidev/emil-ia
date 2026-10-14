@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import cors from "@fastify/cors";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { registerChatRoutes } from "../src/routes/chat.routes.js";
 
@@ -54,6 +55,36 @@ describe("chat routes", () => {
         outputTokens: 34,
       }),
     ]);
+    await app.close();
+  });
+
+  it("allows the browser to read the streamed response across origins", async () => {
+    const app = Fastify();
+    await app.register(cors, { origin: "http://localhost:4200" });
+    registerChatRoutes(app, {
+      prepare: async () => ({
+        conversationId: "00000000-0000-4000-8000-000000000001",
+        profile: "DEFAULT",
+        intent: "EXPLAIN",
+        sandboxStatus: "not_applicable",
+        events: (async function* () {
+          yield { type: "text", delta: "Respuesta" };
+          yield { type: "done", executionId: crypto.randomUUID() };
+        })(),
+      }),
+      complete: async () => {},
+    } as never);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/chat",
+      headers: { origin: "http://localhost:4200" },
+      payload: { content: "Explica un vector" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toContain("event: done");
+    expect(response.headers["access-control-allow-origin"]).toBe("http://localhost:4200");
     await app.close();
   });
 });

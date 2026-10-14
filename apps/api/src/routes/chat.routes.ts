@@ -17,6 +17,11 @@ export function registerChatRoutes(
       parsed.data.content,
       parsed.data.conversationId,
     );
+
+    for (const [name, value] of Object.entries(reply.getHeaders())) {
+      if (value !== undefined) reply.raw.setHeader(name, value);
+    }
+
     reply.raw.writeHead(200, {
       "content-type": "text/event-stream",
       "cache-control": "no-cache",
