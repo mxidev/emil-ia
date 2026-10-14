@@ -7,6 +7,7 @@ import type {
 } from "../interfaces/conversation.interface";
 import { ChatApiService } from "./chat-api.service";
 import { ConversationApiService } from "./conversation-api.service";
+import { NotificationService } from "./notification.service";
 
 @Injectable({ providedIn: "root" })
 export class ChatStateService {
@@ -21,6 +22,7 @@ export class ChatStateService {
   constructor(
     private readonly chatApi: ChatApiService,
     private readonly conversationApi: ConversationApiService,
+    private readonly notifications: NotificationService,
   ) {}
 
   async initialize(): Promise<void> {
@@ -60,6 +62,10 @@ export class ChatStateService {
     
     try {
       await this.conversationApi.download(id, format);
+      this.notifications.show(
+        "success",
+        `Conversación exportada en ${format === "pdf" ? "PDF" : "Markdown"}.`,
+      );
     } catch (error) {
       this.setError(error);
     }
@@ -72,6 +78,7 @@ export class ChatStateService {
     try {
       await this.conversationApi.feedback(id, rating, category);
       this.feedbackSent.set(true);
+      this.notifications.show("success", "Gracias por tu feedback.");
     } catch (error) {
       this.setError(error);
     }
@@ -89,23 +96,31 @@ export class ChatStateService {
     this.draft.set("");
     this.loading.set(true);
     this.error.set(null);
+    let streamErrorReported = false;
 
     try {
       const result = await this.chatApi.stream(
         { content, conversationId: this.conversationId() },
         {
           onToken: (delta) => this.appendAssistantToken(delta),
-          onError: (message) => this.error.set(message),
+          onError: (message) => {
+            if (streamErrorReported) return;
+            streamErrorReported = true;
+            this.setError(new Error(message));
+            this.appendAssistantToken(`No se pudo completar la consulta: ${message}`);
+          },
         },
       );
      
       if (result.conversationId) this.conversationId.set(result.conversationId);
       await this.loadConversations();
     } catch (error) {
-      this.setError(error);
-      this.appendAssistantToken(
-        `No se pudo completar la consulta: ${this.error() ?? "error desconocido"}`,
-      );
+      if (!streamErrorReported) {
+        this.setError(error);
+        this.appendAssistantToken(
+          `No se pudo completar la consulta: ${this.error() ?? "error desconocido"}`,
+        );
+      }
     } finally {
       this.loading.set(false);
     }
@@ -122,8 +137,8 @@ export class ChatStateService {
   }
 
   private setError(error: unknown): void {
-    this.error.set(
-      error instanceof Error ? error.message : "Error desconocido",
-    );
+    const message = error instanceof Error ? error.message : "Error desconocido";
+    this.error.set(message);
+    this.notifications.show("error", message);
   }
 }

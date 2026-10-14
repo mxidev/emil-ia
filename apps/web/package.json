@@ -7,7 +7,7 @@
     "start": "ng serve",
     "build": "ng build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --test test/*.test.mjs"
+    "test": "node --import tsx --test test/*.test.mjs"
   },
   "dependencies": {
     "@angular/animations": "^20.3.0",
