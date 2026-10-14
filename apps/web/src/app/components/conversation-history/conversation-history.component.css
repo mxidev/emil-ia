@@ -89,10 +89,39 @@ button {
 }
 
 .actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   flex: 1;
   min-width: 0;
   padding: 9px 6px;
   font-size: 12px;
+}
+
+.file-icon {
+  display: grid;
+  flex: none;
+  place-items: end center;
+  width: 25px;
+  height: 29px;
+  padding-bottom: 4px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  clip-path: polygon(0 0, 70% 0, 100% 26%, 100% 100%, 0 100%);
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.file-icon-md {
+  color: #2457e6;
+  background: #eef3ff;
+}
+
+.file-icon-pdf {
+  color: #ad3035;
+  background: #fff0f0;
 }
 
 button:disabled {

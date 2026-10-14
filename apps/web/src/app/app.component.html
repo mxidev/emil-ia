@@ -1,14 +1,34 @@
-<main class="shell">
+<main class="shell" [class.history-collapsed]="!historyExpanded()">
   <header class="shell-header">
-    <div class="brand">
-      <span class="mark">∑</span>
-      <div>
-        <h1>Emil-IA</h1>
-        <small>Asistente académico de ingeniería</small>
+    <div class="header-start">
+      <button
+        class="history-toggle"
+        type="button"
+        (click)="toggleHistory()"
+        [attr.aria-expanded]="historyExpanded()"
+        aria-controls="conversation-history-panel"
+        [attr.aria-label]="historyExpanded() ? 'Ocultar historial' : 'Mostrar historial'"
+        [title]="historyExpanded() ? 'Ocultar historial' : 'Mostrar historial'"
+      >
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="16" rx="2" />
+          <path d="M9 4v16" />
+        </svg>
+      </button>
+      <div class="brand">
+        <span class="mark">∑</span>
+        <div>
+          <h1>Emil-IA</h1>
+          <small>Asistente académico de ingeniería</small>
+        </div>
       </div>
     </div>
     <span class="status">● Local</span>
   </header>
-  <app-conversation-history class="history-panel"></app-conversation-history>
+  <app-conversation-history
+    id="conversation-history-panel"
+    class="history-panel"
+    [hidden]="!historyExpanded()"
+  ></app-conversation-history>
   <app-chat class="chat-panel"></app-chat>
 </main>

@@ -32,15 +32,21 @@
       type="button"
       [disabled]="!state.conversationId()"
       (click)="state.exportConversation('md')"
+      aria-label="Exportar conversación en Markdown"
+      title="Exportar conversación en Markdown"
     >
-      Exportar .md
+      <span class="file-icon file-icon-md" aria-hidden="true">MD</span>
+      <span>Markdown</span>
     </button>
     <button
       type="button"
       [disabled]="!state.conversationId()"
       (click)="state.exportConversation('pdf')"
+      aria-label="Exportar conversación en PDF"
+      title="Exportar conversación en PDF"
     >
-      Exportar PDF
+      <span class="file-icon file-icon-pdf" aria-hidden="true">PDF</span>
+      <span>PDF</span>
     </button>
   </div>
 </nav>
