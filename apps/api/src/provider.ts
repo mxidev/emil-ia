@@ -11,7 +11,7 @@ export interface OpenCodeProviderOptions {
   maxTokens: number;
 }
 
-const DEFAULT_BASE_URL = "https://opencode.ai/zen/go/v1";
+const DEFAULT_BASE_URL = "https://opencode.ai/inference/go/v1";
 const DEFAULT_OPTIONS: OpenCodeProviderOptions = {
   connectTimeoutMs: 15000,
   idleTimeoutMs: 60000,
@@ -162,6 +162,8 @@ export class OpenCodeProvider implements AIProvider {
           headers: {
             authorization: `Bearer ${this.apiKey}`,
             "content-type": "application/json",
+            "user-agent": "emil-ia/0.1.0",
+            "x-opencode-session": request.sessionId ?? crypto.randomUUID(),
           },
           body: JSON.stringify({
             model: this.model,
@@ -195,7 +197,7 @@ export class OpenCodeProvider implements AIProvider {
         new Promise<never>((_resolve, reject) => {
           timer = setTimeout(() => {
             reject(new Error("Proveedor IA agotó el tiempo de inactividad"));
-          void reader.cancel();
+            void reader.cancel();
           }, this.options.idleTimeoutMs);
         }),
       ]);
@@ -233,18 +235,16 @@ export function createProvider(): AIProvider {
         process.env.OPENCODE_MODEL,
         10000,
         {
-          connectTimeoutMs: readBoundedSeconds(
-            "OPENCODE_CONNECT_TIMEOUT_SECONDS",
-            15,
-            1,
-            60,
-          ) * 1000,
-          idleTimeoutMs: readBoundedSeconds(
-            "OPENCODE_STREAM_IDLE_TIMEOUT_SECONDS",
-            60,
-            5,
-            300,
-          ) * 1000,
+          connectTimeoutMs:
+            readBoundedSeconds("OPENCODE_CONNECT_TIMEOUT_SECONDS", 15, 1, 60) *
+            1000,
+          idleTimeoutMs:
+            readBoundedSeconds(
+              "OPENCODE_STREAM_IDLE_TIMEOUT_SECONDS",
+              60,
+              5,
+              300,
+            ) * 1000,
           maxTokens: readBoundedInteger("OPENCODE_MAX_TOKENS", 2048, 128, 8192),
         },
       )

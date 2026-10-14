@@ -46,7 +46,7 @@ export class MathVerificationService {
 
   async verify(
     messages: AIRequest["messages"],
-    route: { intent: Intent; profile: Profile },
+    route: { intent: Intent; profile: Profile; sessionId?: string },
   ): Promise<MathVerificationResult> {
     if (!VERIFIABLE_INTENTS.has(route.intent)) {
       return { status: "not_applicable" };
@@ -93,7 +93,9 @@ export class MathVerificationService {
     }
   }
 
-  private parsePlan(value: string): z.infer<typeof CalculationPlanSchema> | null {
+  private parsePlan(
+    value: string,
+  ): z.infer<typeof CalculationPlanSchema> | null {
     try {
       const parsed: unknown = JSON.parse(value);
       const result = CalculationPlanSchema.safeParse(parsed);

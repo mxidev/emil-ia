@@ -28,12 +28,12 @@ export class ChatService {
     await this.repository.addMessage(conversationId, { role: "user", content });
     messages.push({ role: "user", content });
     const route = routePrompt(content);
-    const verification = await this.mathVerification.verify(messages, route);
+    const verification = await this.mathVerification.verify(messages, {
+      ...route,
+      sessionId: conversationId,
+    });
     const providerMessages: AIRequest["messages"] = verification.systemMessage
-      ? [
-          { role: "system", content: verification.systemMessage },
-          ...messages,
-        ]
+      ? [{ role: "system", content: verification.systemMessage }, ...messages]
       : messages;
 
     return {
@@ -41,7 +41,11 @@ export class ChatService {
       ...route,
       sandboxStatus: verification.status,
       events: this.withFooter(
-        this.provider.stream({ messages: providerMessages, ...route }),
+        this.provider.stream({
+          messages: providerMessages,
+          ...route,
+          sessionId: conversationId,
+        }),
         verification.footer,
       ),
     };

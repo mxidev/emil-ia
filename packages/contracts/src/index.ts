@@ -20,6 +20,7 @@ export const ChatRequestSchema = z.object({
 export type ChatRequest = z.infer<typeof ChatRequestSchema>;
 
 export interface AIRequest {
+  sessionId?: string;
   messages: Array<{ role: "user" | "assistant" | "system"; content: string }>;
   profile: Profile;
   intent: Intent;

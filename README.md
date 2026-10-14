@@ -18,7 +18,14 @@ El adaptador actual usa el protocolo OpenAI Chat Completions. Configura en
 `.env` un modelo de OpenCode Go compatible, junto con `OPENCODE_API_KEY`,
 `OPENCODE_MODEL` y la URL base incluida en `.env.example`. Los modelos que
 requieren Responses API o el protocolo Anthropic todavía no están soportados;
-consulta la [lista vigente de endpoints de OpenCode Go](https://docs.opencode.ai/docs/go/).
+consulta la [lista vigente de endpoints de OpenCode Go](https://opencode.ai/v2/docs/console/go/).
+
+La conexión validada el 14 de octubre de 2026 usa
+`OPENCODE_BASE_URL=https://opencode.ai/inference/go/v1` y
+`OPENCODE_MODEL=space-bunny`. Si conservas un `.env` anterior, actualiza estos
+valores: cambiar `.env.example` no modifica tu configuración local.
+El adaptador se identifica como `emil-ia/0.1.0` y envía el ID de conversación en
+`x-opencode-session`, tanto para la planificación como para la respuesta final.
 
 El adaptador acepta solamente Chat Completions y aplica límites locales antes de
 enviar una solicitud: `OPENCODE_CONNECT_TIMEOUT_SECONDS` (15; entre 1 y 60),

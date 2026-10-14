@@ -3,10 +3,12 @@ import type { ModelExecutionRecord } from "../src/interfaces/persistence.interfa
 import type { AIProvider } from "../src/provider.js";
 import { describe, expect, it } from "vitest";
 import { ChatService } from "../src/services/chat.service.js";
+import { MathVerificationService } from "../src/services/math-verification.service.js";
 
 class MemoryRepository {
   readonly executions: ModelExecutionRecord[] = [];
-  readonly messages: Array<{ role: "user" | "assistant"; content: string }> = [];
+  readonly messages: Array<{ role: "user" | "assistant"; content: string }> =
+    [];
 
   async createConversation(): Promise<void> {}
 
@@ -56,6 +58,42 @@ async function collect(events: AsyncIterable<AIEvent>): Promise<AIEvent[]> {
 }
 
 describe("ChatService math verification", () => {
+  it("shares the conversation session across planning, streaming and follow-ups", async () => {
+    const requests: AIRequest[] = [];
+    const provider: AIProvider = {
+      async generate(request) {
+        requests.push(request);
+        return '{"code":"result = 42"}';
+      },
+      async *stream(request) {
+        requests.push(request);
+        yield {
+          type: "done",
+          executionId: crypto.randomUUID(),
+          profile: request.profile,
+          intent: request.intent,
+        };
+      },
+    };
+    const verifier = new MathVerificationService(provider, {
+      run: async () => ({ ok: true, variables: { result: "42" } }),
+    });
+    const chat = new ChatService(new MemoryRepository(), provider, verifier);
+    const first = await chat.prepare("Calcula 6 * 7");
+    await collect(first.events);
+    const next = await chat.prepare("Calcula 6 * 7", first.conversationId);
+    await collect(next.events);
+    expect(requests).toHaveLength(4);
+    for (const request of requests) {
+      expect(request).toMatchObject({ sessionId: first.conversationId });
+    }
+    const separate = await chat.prepare("Calcula 6 * 7");
+    await collect(separate.events);
+    expect(separate.conversationId).not.toBe(first.conversationId);
+    expect(requests.at(-1)).toMatchObject({
+      sessionId: separate.conversationId,
+    });
+  });
   it("streams a verified answer and footer before done", async () => {
     const repository = new MemoryRepository();
     const verifier = {
@@ -121,11 +159,9 @@ describe("ChatService math verification", () => {
 
   it("persists the sandbox status with the completed execution", async () => {
     const repository = new MemoryRepository();
-    const chat = new ChatService(
-      repository as never,
-      contextualProvider(),
-      { verify: async () => ({ status: "success" as const }) } as never,
-    );
+    const chat = new ChatService(repository as never, contextualProvider(), {
+      verify: async () => ({ status: "success" as const }),
+    } as never);
 
     await chat.complete({
       executionId: "00000000-0000-4000-8000-000000000042",

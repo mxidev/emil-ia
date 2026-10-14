@@ -7,6 +7,7 @@ import {
 } from "../src/provider.js";
 
 const REQUEST: AIRequest = {
+  sessionId: "00000000-0000-4000-8000-000000000042",
   messages: [{ role: "user", content: "Calcula 2 + 2" }],
   profile: "MATH",
   intent: "COMPUTE",
@@ -72,10 +73,12 @@ describe("provider generation", () => {
       "https://example.test/v1/chat/completions",
       expect.objectContaining({
         method: "POST",
-        headers: {
+        headers: expect.objectContaining({
           authorization: "Bearer secret",
           "content-type": "application/json",
-        },
+          "user-agent": "emil-ia/0.1.0",
+          "x-opencode-session": REQUEST.sessionId,
+        }),
         body: JSON.stringify({
           model: "math-model",
           stream: false,
@@ -146,8 +149,12 @@ describe("provider generation", () => {
 
     expect(events.at(-1)).toMatchObject({ type: "done" });
     expect(fetch).toHaveBeenCalledWith(
-      "https://opencode.ai/zen/go/v1/chat/completions",
+      "https://opencode.ai/inference/go/v1/chat/completions",
       expect.objectContaining({
+        headers: expect.objectContaining({
+          "x-opencode-session": REQUEST.sessionId,
+          "user-agent": "emil-ia/0.1.0",
+        }),
         body: JSON.stringify({
           model: "math-model",
           stream: true,
@@ -162,14 +169,16 @@ describe("provider generation", () => {
   it("preserves fragmented text and emits provider usage on done", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(
-        streamingResponse([
-          'data: {"choices":[{"delta":{"content":"Hel',
-          'lo"}}]}\n\n',
-          'data: {"usage":{"prompt_tokens":3,"completion_tokens":5}}\n\n',
-          "data: [DONE]\n\n",
-        ]),
-      ),
+      vi
+        .fn()
+        .mockResolvedValue(
+          streamingResponse([
+            'data: {"choices":[{"delta":{"content":"Hel',
+            'lo"}}]}\n\n',
+            'data: {"usage":{"prompt_tokens":3,"completion_tokens":5}}\n\n',
+            "data: [DONE]\n\n",
+          ]),
+        ),
     );
     const provider = new OpenCodeProvider(
       "secret",
@@ -190,13 +199,15 @@ describe("provider generation", () => {
   it("accepts an SSE CRLF delimiter split across chunks", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(
-        streamingResponse([
-          'data: {"choices":[{"delta":{"content":"Hola"}}]}\r',
-          "\n\r\n",
-          "data: [DONE]\r\n\r\n",
-        ]),
-      ),
+      vi
+        .fn()
+        .mockResolvedValue(
+          streamingResponse([
+            'data: {"choices":[{"delta":{"content":"Hola"}}]}\r',
+            "\n\r\n",
+            "data: [DONE]\r\n\r\n",
+          ]),
+        ),
     );
     const provider = new OpenCodeProvider(
       "secret",
@@ -269,11 +280,13 @@ describe("provider generation", () => {
   it("rejects an upstream SSE error instead of completing the response", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(
-        streamingResponse([
-          'data: {"error":{"message":"upstream detail"}}\n\n',
-        ]),
-      ),
+      vi
+        .fn()
+        .mockResolvedValue(
+          streamingResponse([
+            'data: {"error":{"message":"upstream detail"}}\n\n',
+          ]),
+        ),
     );
     const provider = new OpenCodeProvider(
       "secret",
@@ -281,7 +294,9 @@ describe("provider generation", () => {
       "math-model",
     );
 
-    await expect(collect(provider)).rejects.toThrow("Proveedor IA devolvió un error");
+    await expect(collect(provider)).rejects.toThrow(
+      "Proveedor IA devolvió un error",
+    );
   });
 
   it("aborts a stream whose connection exceeds the configured deadline", async () => {
@@ -290,7 +305,9 @@ describe("provider generation", () => {
       vi.fn().mockImplementation((_url: string, init: RequestInit) => {
         if (!init.signal) throw new Error("missing connection deadline");
         return new Promise((_resolve, reject) => {
-          init.signal?.addEventListener("abort", () => reject(init.signal?.reason));
+          init.signal?.addEventListener("abort", () =>
+            reject(init.signal?.reason),
+          );
         });
       }),
     );
@@ -302,30 +319,30 @@ describe("provider generation", () => {
       { connectTimeoutMs: 5, idleTimeoutMs: 60, maxTokens: 2048 },
     );
 
-    await expect(collect(provider)).rejects.toMatchObject({ name: "TimeoutError" });
+    await expect(collect(provider)).rejects.toMatchObject({
+      name: "TimeoutError",
+    });
   });
 
-  it(
-    "aborts a stream that stays idle after connecting",
-    async () => {
-      vi.stubGlobal(
-        "fetch",
-        vi.fn().mockResolvedValue(
+  it("aborts a stream that stays idle after connecting", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
           new Response(new ReadableStream({ start() {} }), { status: 200 }),
         ),
-      );
-      const provider = new OpenCodeProvider(
-        "secret",
-        "https://example.test/v1",
-        "math-model",
-        10000,
-        { connectTimeoutMs: 60, idleTimeoutMs: 5, maxTokens: 2048 },
-      );
+    );
+    const provider = new OpenCodeProvider(
+      "secret",
+      "https://example.test/v1",
+      "math-model",
+      10000,
+      { connectTimeoutMs: 60, idleTimeoutMs: 5, maxTokens: 2048 },
+    );
 
-      await expect(collect(provider)).rejects.toThrow(
-        "Proveedor IA agotó el tiempo de inactividad",
-      );
-    },
-    100,
-  );
+    await expect(collect(provider)).rejects.toThrow(
+      "Proveedor IA agotó el tiempo de inactividad",
+    );
+  }, 100);
 });
