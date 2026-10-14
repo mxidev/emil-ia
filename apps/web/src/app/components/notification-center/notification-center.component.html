@@ -1,0 +1,30 @@
+<aside class="notification-center" aria-label="Avisos">
+  @for (notice of notifications.notifications(); track notice.id) {
+    <section
+      class="notice"
+      [class.closing]="notice.closing"
+      [class.notice-error]="notice.kind === 'error'"
+      [class.notice-warning]="notice.kind === 'warning'"
+      [class.notice-success]="notice.kind === 'success'"
+      [class.notice-info]="notice.kind === 'info'"
+      [class.notice-tip]="notice.kind === 'tip'"
+      [attr.role]="
+        notice.kind === 'error' || notice.kind === 'warning' ? 'alert' : 'status'
+      "
+    >
+      <span class="notice-icon" aria-hidden="true"></span>
+      <div class="notice-content">
+        <strong>{{ labels[notice.kind] }}</strong>
+        <p>{{ notice.message }}</p>
+      </div>
+      <button
+        type="button"
+        class="notice-close"
+        [attr.aria-label]="'Cerrar aviso: ' + notice.message"
+        (click)="notifications.dismiss(notice.id)"
+      >
+        ×
+      </button>
+    </section>
+  }
+</aside>
