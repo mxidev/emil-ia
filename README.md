@@ -40,6 +40,27 @@ resultado verificado. Si el plan o el sandbox fallan, el chat continúa con una
 advertencia. Con el proveedor mock, la respuesta indica que la verificación
 automática requiere un proveedor real y nunca simula un resultado.
 
+## Pruebas de integración
+
+Con PostgreSQL y sandbox en ejecución (`podman-compose up -d postgres sandbox`),
+ejecuta `npm run test:integration`. La suite usa las rutas HTTP de Fastify mediante
+`app.inject`, PostgreSQL y sandbox reales, y un proveedor de IA determinista:
+no necesita claves ni consume la suscripción de OpenCode.
+
+Cubre respuesta verificada recuperable desde el historial, rechazo del cálculo
+con advertencia persistida y fallo del proveedor sin guardar una respuesta parcial.
+Las aserciones consultan historial y analítica a través de la API.
+
+Cada prueba crea un esquema PostgreSQL `integration_<uuid>` y lo elimina al
+terminar, también ante un fallo normal. No usa las tablas de `public`.
+Una interrupción forzada del proceso puede dejar su esquema temporal pendiente
+de eliminación manual. La cuenta de prueba necesita permisos para crear esquemas.
+
+La suite no carga `.env`. Usa por defecto los servicios locales del compose;
+para otros puertos locales, configura `TEST_DATABASE_URL` y `TEST_SANDBOX_URL`.
+Solo acepta direcciones de loopback. Si faltan servicios, las pruebas fallan.
+`npm test` conserva la suite habitual y no ejecuta estas pruebas de integración.
+
 ## Podman en Windows
 
 La configuración utiliza una máquina Podman rootless. Después de instalar Podman:

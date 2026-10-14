@@ -2,14 +2,20 @@
   "name": "emil-ia",
   "private": true,
   "version": "0.1.0",
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "npm run dev --workspace @emil-ia/api",
     "dev:web": "npm run start --workspace @emil-ia/web",
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present && npm run test:sandbox",
+    "test:integration": "npm run test:integration --workspace @emil-ia/api",
     "test:sandbox": "python -m unittest discover -s services/sandbox -p \"test_*.py\"",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },
-  "engines": { "node": ">=24" }
+  "engines": {
+    "node": ">=24"
+  }
 }

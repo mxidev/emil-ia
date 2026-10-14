@@ -33,16 +33,22 @@ No se probó la interfaz Angular en el navegador.
 
 ## Qué se gana y qué sigue
 
-Validación automatizada: 28 pruebas de API y 2 del sandbox aprobadas,
+Validación automatizada: 28 pruebas de API, 2 del sandbox y 3 de integración aprobadas,
 chequeos de tipos de API y web aprobados, y `git diff --check` sin errores.
 
 La aplicación puede usar la suscripción real con identificación estable de sesión
 y conservar métricas verificadas en PostgreSQL. Las pruebas automatizadas cubren
 la propagación de sesión entre turnos y las cabeceras enviadas al proveedor.
 
-El siguiente paso es convertir la comprobación con PostgreSQL y sandbox en pruebas
-de integración repetibles, dejando las llamadas de pago fuera de la suite habitual.
-Después conviene evaluar consultas matemáticas representativas y fallos del
-planificador y sandbox.
+Se añadió `npm run test:integration` para repetir la comprobación con PostgreSQL
+y sandbox reales y un proveedor determinista, sin llamadas de pago. Sus tres casos
+comprueban la respuesta verificada recuperable desde el historial, la advertencia
+ante un cálculo rechazado y la ausencia de respuestas parciales persistidas tras
+un fallo del proveedor. Cada caso usa y elimina un esquema temporal propio.
+
+Esta suite prueba rutas, servicios y persistencia juntos; no mide la calidad del
+modelo real ni sustituye las pruebas del adaptador OpenCode. El siguiente paso es
+evaluar consultas matemáticas representativas y ampliar la cobertura de fallos
+del planificador y sandbox.
 
 Referencia consultada: [OpenCode Go](https://opencode.ai/v2/docs/console/go/).
