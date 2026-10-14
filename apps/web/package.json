@@ -2,10 +2,12 @@
   "name": "@emil-ia/web",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "start": "ng serve",
     "build": "ng build",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
     "@angular/animations": "^20.3.0",
