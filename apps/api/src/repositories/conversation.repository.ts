@@ -5,8 +5,38 @@ import type {
   AnalyticsSummary,
   ConversationSummary,
   ModelExecutionRecord,
+  NewAttachment,
+  StoredAttachment,
   StoredMessage,
 } from "../interfaces/persistence.interface.js";
+import type { AttachmentMetadata } from "@emil-ia/contracts";
+
+type AttachmentRow = Omit<AttachmentMetadata, "createdAt" | "updatedAt"> & {
+  content?: Buffer;
+  extractedText?: string;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+};
+
+function mapAttachmentMetadata(row: AttachmentRow): AttachmentMetadata {
+  return {
+    id: row.id,
+    conversationId: row.conversationId,
+    filename: row.filename,
+    mimeType: row.mimeType,
+    byteSize: row.byteSize,
+    status: row.status,
+    extractionError: row.extractionError ?? null,
+    createdAt:
+      row.createdAt instanceof Date
+        ? row.createdAt.toISOString()
+        : row.createdAt,
+    updatedAt:
+      row.updatedAt instanceof Date
+        ? row.updatedAt.toISOString()
+        : row.updatedAt,
+  };
+}
 
 export class ConversationRepository {
   private readonly localUserId = "00000000-0000-4000-8000-000000000001";
@@ -92,6 +122,47 @@ export class ConversationRepository {
       rating,
       category ?? null,
     ]);
+  }
+
+  async createAttachment(data: NewAttachment): Promise<AttachmentMetadata> {
+    const result = await this.pool.query<AttachmentRow>(
+      DATABASE_QUERIES.createAttachment,
+      [
+        data.id,
+        data.conversationId,
+        data.filename,
+        data.mimeType,
+        data.byteSize,
+        data.content,
+        data.extractedText,
+        data.status,
+        data.extractionError ?? null,
+      ],
+    );
+    return mapAttachmentMetadata(result.rows[0]);
+  }
+
+  async listAttachments(conversationId: string): Promise<AttachmentMetadata[]> {
+    const result = await this.pool.query<AttachmentRow>(
+      DATABASE_QUERIES.listAttachments,
+      [conversationId],
+    );
+    return result.rows.map(mapAttachmentMetadata);
+  }
+
+  async getAttachmentsForChat(
+    conversationId: string,
+    ids: string[],
+  ): Promise<StoredAttachment[]> {
+    const result = await this.pool.query<AttachmentRow>(
+      DATABASE_QUERIES.getAttachmentsForChat,
+      [conversationId, ids],
+    );
+    return result.rows.map((row) => ({
+      ...mapAttachmentMetadata(row),
+      content: row.content as Buffer,
+      extractedText: row.extractedText ?? "",
+    }));
   }
 
   async getAnalyticsSummary(): Promise<AnalyticsSummary> {
