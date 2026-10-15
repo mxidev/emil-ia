@@ -32,8 +32,6 @@ export class ChatService {
     }
 
     const messages = await this.repository.getMessages(conversationId);
-    await this.repository.addMessage(conversationId, { role: "user", content });
-    messages.push({ role: "user", content });
     const attachmentMessages =
       attachmentIds.length > 0
         ? await this.attachmentService?.getContext(conversationId, attachmentIds)
@@ -41,6 +39,8 @@ export class ChatService {
     if (attachmentIds.length > 0 && !attachmentMessages) {
       throw new Error("Attachment context is not configured");
     }
+    await this.repository.addMessage(conversationId, { role: "user", content });
+    messages.push({ role: "user", content });
     const contextualMessages = [
       ...(attachmentMessages ?? []),
       ...messages,

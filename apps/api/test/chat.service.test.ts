@@ -4,6 +4,7 @@ import type { AIProvider } from "../src/provider.js";
 import { describe, expect, it } from "vitest";
 import { ChatService } from "../src/services/chat.service.js";
 import { MathVerificationService } from "../src/services/math-verification.service.js";
+import { AttachmentNotFoundError } from "../src/services/attachment.service.js";
 
 const conversationId = "00000000-0000-4000-8000-000000000001";
 
@@ -60,6 +61,27 @@ async function collect(events: AsyncIterable<AIEvent>): Promise<AIEvent[]> {
 }
 
 describe("ChatService math verification", () => {
+  it("does not persist a user message when attachment access fails", async () => {
+    const repository = new MemoryRepository();
+    const chat = new ChatService(
+      repository,
+      contextualProvider(),
+      { verify: async () => ({ status: "not_applicable" as const }) },
+      {
+        getContext: async () => {
+          throw new AttachmentNotFoundError("Attachment not found in conversation");
+        },
+      },
+    );
+
+    await expect(
+      chat.prepare("Resume el PDF", conversationId, [
+        "00000000-0000-4000-8000-000000000002",
+      ]),
+    ).rejects.toBeInstanceOf(AttachmentNotFoundError);
+    expect(repository.messages).toEqual([]);
+  });
+
   it("includes selected PDF context in verification and provider messages", async () => {
     const verificationMessages: AIRequest["messages"][] = [];
     const providerRequests: AIRequest[] = [];
