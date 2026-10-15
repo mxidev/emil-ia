@@ -1,3 +1,20 @@
+:root {
+  --color-ink: #3f2b1b;
+  --color-muted: #705a45;
+  --color-brand: #724319;
+  --color-brand-hover: #5b3518;
+  --color-brand-soft: #feeac7;
+  --color-secondary: #d88180;
+  --color-accent: #f7b1b0;
+  --color-success: #cad182;
+  --color-line: #e6d1b1;
+  --color-surface: #fffdf8;
+  --color-sidebar: #fff7e9;
+  --color-page: #f8f0e4;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+}
+
 html,
 body {
   margin: 0;
@@ -6,7 +23,7 @@ body {
 }
 
 body {
-  background: #f2f5fb;
+  background: var(--color-page);
   font-family:
     Inter,
     ui-sans-serif,

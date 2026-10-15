@@ -52,6 +52,17 @@
   background: var(--color-surface);
   color: var(--color-ink);
   cursor: pointer;
+  transition:
+    transform 140ms var(--ease-out),
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
+}
+
+.suggestions button:active:not(:focus-visible),
+.feedback button:active:not(:focus-visible),
+.composer button:active:not(:disabled):not(:focus-visible) {
+  transform: scale(0.98);
 }
 
 .suggestions button {
@@ -70,7 +81,7 @@ article {
   max-width: min(82%, 640px);
   margin-right: 0;
   padding: 13px 17px;
-  border: 1px solid #dce6ff;
+  border: 1px solid var(--color-accent);
   border-radius: 16px 16px 4px 16px;
   background: var(--color-brand-soft);
 }
@@ -130,12 +141,15 @@ article {
   border: 1px solid var(--color-line);
   border-radius: 16px;
   background: var(--color-surface);
-  box-shadow: 0 5px 28px #17203312;
+  box-shadow: 0 5px 28px #72431912;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
 }
 
 .composer:focus-within {
   border-color: var(--color-brand);
-  box-shadow: 0 0 0 3px #2457e61a;
+  box-shadow: 0 0 0 3px #7243191f;
 }
 
 .composer textarea {
@@ -163,10 +177,13 @@ article {
   border: 0;
   border-radius: 10px;
   background: var(--color-brand);
-  color: #fff;
+  color: var(--color-surface);
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
+  transition:
+    transform 140ms var(--ease-out),
+    background-color 140ms ease;
 }
 
 .composer button:disabled {
@@ -182,12 +199,28 @@ button:focus-visible {
 @media (hover: hover) and (pointer: fine) {
   .suggestions button:hover,
   .feedback button:hover {
-    border-color: #a9befb;
+    border-color: var(--color-secondary);
+    background: var(--color-accent);
     color: var(--color-brand);
   }
 
   .composer button:not(:disabled):hover {
-    background: #1746bd;
+    background: var(--color-brand-hover);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .suggestions button,
+  .feedback button,
+  .composer,
+  .composer button {
+    transition: none;
+  }
+
+  .suggestions button:active:not(:focus-visible),
+  .feedback button:active:not(:focus-visible),
+  .composer button:active:not(:disabled):not(:focus-visible) {
+    transform: none;
   }
 }
 

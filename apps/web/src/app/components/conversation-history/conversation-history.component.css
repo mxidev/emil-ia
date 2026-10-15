@@ -38,7 +38,7 @@ button {
 .new-conversation {
   flex: none;
   padding: 8px 10px;
-  border-color: #bfd0ff;
+  border-color: var(--color-secondary);
   color: var(--color-brand);
   font-size: 12px;
   font-weight: 700;
@@ -68,9 +68,9 @@ button {
 }
 
 .conversation.selected {
-  border-color: #bfd0ff;
+  border-color: var(--color-secondary);
   background: var(--color-brand-soft);
-  color: #1746bd;
+  color: var(--color-brand);
   font-weight: 600;
 }
 
@@ -100,28 +100,23 @@ button {
 }
 
 .file-icon {
-  display: grid;
+  display: block;
   flex: none;
-  place-items: end center;
-  width: 25px;
-  height: 29px;
-  padding-bottom: 4px;
-  border: 1px solid currentColor;
-  border-radius: 3px;
-  clip-path: polygon(0 0, 70% 0, 100% 26%, 100% 100%, 0 100%);
-  font-size: 9px;
-  font-weight: 800;
-  line-height: 1;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 
 .file-icon-md {
-  color: #2457e6;
-  background: #eef3ff;
+  color: var(--color-brand);
+  background: var(--color-brand-soft);
 }
 
 .file-icon-pdf {
-  color: #ad3035;
-  background: #fff0f0;
+  color: #8b4847;
+  background: var(--color-accent);
 }
 
 button:disabled {
@@ -134,10 +129,32 @@ button:focus-visible {
   outline-offset: 2px;
 }
 
+button {
+  transition:
+    transform 140ms var(--ease-out),
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
 @media (hover: hover) and (pointer: fine) {
   button:not(:disabled):hover {
-    border-color: #a9befb;
-    background: var(--color-brand-soft);
+    border-color: var(--color-secondary);
+    background: var(--color-accent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button {
+    transition: none;
+  }
+
+  button:active:not(:disabled) {
+    transform: none;
   }
 }
 

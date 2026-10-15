@@ -10,6 +10,7 @@ import { ChatStateService } from "./services/chat-state.service";
 })
 export class AppComponent implements OnInit {
   readonly historyExpanded = signal(true);
+  readonly historyMotionEnabled = signal(false);
 
   constructor(private readonly chatState: ChatStateService) {}
 
@@ -17,7 +18,8 @@ export class AppComponent implements OnInit {
     void this.chatState.initialize();
   }
 
-  toggleHistory(): void {
+  toggleHistory(event: MouseEvent): void {
+    this.historyMotionEnabled.set(event.detail > 0);
     this.historyExpanded.update((expanded) => !expanded);
   }
 }

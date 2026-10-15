@@ -1,10 +1,14 @@
-<main class="shell" [class.history-collapsed]="!historyExpanded()">
+<main
+  class="shell"
+  [class.history-collapsed]="!historyExpanded()"
+  [class.history-motion-enabled]="historyMotionEnabled()"
+>
   <header class="shell-header">
     <div class="header-start">
       <button
         class="history-toggle"
         type="button"
-        (click)="toggleHistory()"
+        (click)="toggleHistory($event)"
         [attr.aria-expanded]="historyExpanded()"
         aria-controls="conversation-history-panel"
         [attr.aria-label]="historyExpanded() ? 'Ocultar historial' : 'Mostrar historial'"
@@ -28,7 +32,8 @@
   <app-conversation-history
     id="conversation-history-panel"
     class="history-panel"
-    [hidden]="!historyExpanded()"
+    [attr.aria-hidden]="historyExpanded() ? null : 'true'"
+    [attr.inert]="historyExpanded() ? null : ''"
   ></app-conversation-history>
   <app-chat class="chat-panel"></app-chat>
   <app-notification-center></app-notification-center>

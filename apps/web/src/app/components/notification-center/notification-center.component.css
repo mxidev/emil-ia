@@ -28,7 +28,7 @@
   border-left: 3px solid var(--notice-accent);
   border-radius: 12px;
   background: var(--color-surface);
-  box-shadow: 0 12px 32px #17203324;
+  box-shadow: 0 12px 32px #72431924;
   color: var(--color-ink);
   opacity: 1;
   transform: translateY(0);
@@ -52,28 +52,28 @@
 }
 
 .notice-error {
-  --notice-accent: #b22d34;
-  --notice-tint: #fff0f0;
+  --notice-accent: var(--color-brand);
+  --notice-tint: var(--color-accent);
 }
 
 .notice-warning {
-  --notice-accent: #a3680a;
-  --notice-tint: #fff7e7;
+  --notice-accent: var(--color-brand);
+  --notice-tint: var(--color-brand-soft);
 }
 
 .notice-success {
-  --notice-accent: #16764c;
-  --notice-tint: #ecfaf2;
+  --notice-accent: var(--color-ink);
+  --notice-tint: var(--color-success);
 }
 
 .notice-info {
-  --notice-accent: #2457e6;
-  --notice-tint: #eef3ff;
+  --notice-accent: var(--color-brand);
+  --notice-tint: var(--color-brand-soft);
 }
 
 .notice-tip {
-  --notice-accent: #7152b1;
-  --notice-tint: #f4efff;
+  --notice-accent: var(--color-brand);
+  --notice-tint: var(--color-accent);
 }
 
 .notice-icon {
@@ -139,6 +139,14 @@
   cursor: pointer;
   font-size: 19px;
   line-height: 1;
+  transition:
+    transform 140ms var(--ease-out),
+    background-color 140ms ease,
+    color 140ms ease;
+}
+
+.notice-close:active:not(:focus-visible) {
+  transform: scale(0.97);
 }
 
 .notice-close:focus-visible {
@@ -167,6 +175,14 @@
   .notice.closing {
     transform: none;
     transition: opacity 180ms ease;
+  }
+
+  .notice-close {
+    transition: none;
+  }
+
+  .notice-close:active:not(:focus-visible) {
+    transform: none;
   }
 
   @starting-style {
