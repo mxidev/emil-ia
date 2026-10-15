@@ -5,6 +5,8 @@ import { describe, expect, it } from "vitest";
 import { ChatService } from "../src/services/chat.service.js";
 import { MathVerificationService } from "../src/services/math-verification.service.js";
 
+const conversationId = "00000000-0000-4000-8000-000000000001";
+
 class MemoryRepository {
   readonly executions: ModelExecutionRecord[] = [];
   readonly messages: Array<{ role: "user" | "assistant"; content: string }> =
@@ -58,6 +60,59 @@ async function collect(events: AsyncIterable<AIEvent>): Promise<AIEvent[]> {
 }
 
 describe("ChatService math verification", () => {
+  it("includes selected PDF context in verification and provider messages", async () => {
+    const verificationMessages: AIRequest["messages"][] = [];
+    const providerRequests: AIRequest[] = [];
+    const attachmentContext = {
+      getContext: async () => [
+        {
+          role: "system" as const,
+          content: "Document reference: método de Euler",
+        },
+      ],
+    };
+    const provider: AIProvider = {
+      generate: async () => null,
+      async *stream(request) {
+        providerRequests.push(request);
+        yield {
+          type: "done",
+          executionId: crypto.randomUUID(),
+          profile: request.profile,
+          intent: request.intent,
+        };
+      },
+    };
+    const verifier = {
+      verify: async (messages: AIRequest["messages"]) => {
+        verificationMessages.push(messages);
+        return { status: "not_applicable" as const };
+      },
+    };
+    const chat = new ChatService(
+      new MemoryRepository(),
+      provider,
+      verifier,
+      attachmentContext,
+    );
+
+    const prepared = await chat.prepare(
+      "Resume el método",
+      conversationId,
+      ["00000000-0000-4000-8000-000000000002"],
+    );
+    await collect(prepared.events);
+
+    expect(verificationMessages[0]).toContainEqual({
+      role: "system",
+      content: "Document reference: método de Euler",
+    });
+    expect(providerRequests[0].messages).toContainEqual({
+      role: "system",
+      content: "Document reference: método de Euler",
+    });
+  });
+
   it("shares the conversation session across planning, streaming and follow-ups", async () => {
     const requests: AIRequest[] = [];
     const provider: AIProvider = {

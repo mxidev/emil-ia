@@ -272,3 +272,67 @@ it("keeps provider context isolated between conversations", async () => {
     content: "Explica el concepto B",
   });
 });
+
+it("uses a reloaded PDF in follow-up chat and blocks another conversation", async () => {
+  const requests: AIRequest[] = [];
+  fixture = await createIntegrationApp(contextualProvider(requests));
+
+  const first = await fixture.app.inject({
+    method: "POST",
+    url: "/api/chat",
+    payload: { content: "Crea una conversación sobre métodos numéricos" },
+  });
+  const firstId = first.headers["x-conversation-id"];
+  const upload = multipartPdf(await createPdf("El método de Euler aproxima soluciones."));
+  const uploaded = await fixture.app.inject({
+    method: "POST",
+    url: `/api/conversations/${firstId}/attachments`,
+    headers: { "content-type": upload.contentType },
+    payload: upload.body,
+  });
+  const attachmentId = uploaded.json().id;
+
+  const reloaded = await fixture.app.inject({
+    method: "GET",
+    url: `/api/conversations/${firstId}/attachments`,
+  });
+  expect(reloaded.json()).toEqual([uploaded.json()]);
+
+  const followUp = await fixture.app.inject({
+    method: "POST",
+    url: "/api/chat",
+    payload: {
+      conversationId: firstId,
+      content: "Resume el documento",
+      attachmentIds: [attachmentId],
+    },
+  });
+  expect(followUp.statusCode).toBe(200);
+  expect(requests[1].messages).toContainEqual(
+    expect.objectContaining({
+      role: "system",
+      content: expect.stringContaining("El método de Euler"),
+    }),
+  );
+
+  const second = await fixture.app.inject({
+    method: "POST",
+    url: "/api/chat",
+    payload: { content: "Crea otra conversación" },
+  });
+  const secondId = second.headers["x-conversation-id"];
+  const requestCount = requests.length;
+  const forbidden = await fixture.app.inject({
+    method: "POST",
+    url: "/api/chat",
+    payload: {
+      conversationId: secondId,
+      content: "Resume el documento ajeno",
+      attachmentIds: [attachmentId],
+    },
+  });
+
+  expect(forbidden.statusCode).toBe(404);
+  expect(forbidden.body).not.toContain("event: token");
+  expect(requests).toHaveLength(requestCount);
+});

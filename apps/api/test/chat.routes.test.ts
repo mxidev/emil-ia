@@ -3,6 +3,7 @@ import cors from "@fastify/cors";
 import { ChatRequestSchema } from "@emil-ia/contracts";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { registerChatRoutes } from "../src/routes/chat.routes.js";
+import { AttachmentNotFoundError } from "../src/services/attachment.service.js";
 
 describe("chat routes", () => {
   afterEach(() => {
@@ -86,6 +87,64 @@ describe("chat routes", () => {
     expect(response.statusCode).toBe(200);
     expect(response.body).toContain("event: done");
     expect(response.headers["access-control-allow-origin"]).toBe("http://localhost:4200");
+    await app.close();
+  });
+
+  it("passes selected attachment IDs to chat preparation", async () => {
+    let preparedArguments: unknown[] = [];
+    const app = Fastify();
+    registerChatRoutes(app, {
+      prepare: async (...args: unknown[]) => {
+        preparedArguments = args;
+        return {
+          conversationId: "00000000-0000-4000-8000-000000000001",
+          profile: "DEFAULT",
+          intent: "EXPLAIN",
+          sandboxStatus: "not_applicable",
+          events: (async function* () {
+            yield { type: "done", executionId: crypto.randomUUID() };
+          })(),
+        };
+      },
+      complete: async () => {},
+    } as never);
+
+    const attachmentIds = ["00000000-0000-4000-8000-000000000002"];
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/chat",
+      payload: { content: "Resume el PDF", attachmentIds },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(preparedArguments).toEqual([
+      "Resume el PDF",
+      undefined,
+      attachmentIds,
+    ]);
+    await app.close();
+  });
+
+  it("returns attachment access errors before opening an SSE response", async () => {
+    const app = Fastify();
+    registerChatRoutes(app, {
+      prepare: async () => {
+        throw new AttachmentNotFoundError("Attachment not found in conversation");
+      },
+      complete: async () => {},
+    } as never);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/chat",
+      payload: {
+        content: "Resume el PDF",
+        attachmentIds: ["00000000-0000-4000-8000-000000000002"],
+      },
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.headers["content-type"]).not.toContain("text/event-stream");
     await app.close();
   });
 

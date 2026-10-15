@@ -1,5 +1,6 @@
 import { ChatRequestSchema } from "@emil-ia/contracts";
 import type { FastifyInstance } from "fastify";
+import { AttachmentServiceError } from "../services/attachment.service.js";
 import type { ChatService } from "../services/chat.service.js";
 
 export function registerChatRoutes(
@@ -13,10 +14,19 @@ export function registerChatRoutes(
     }
 
     const startedAt = Date.now();
-    const context = await chat.prepare(
-      parsed.data.content,
-      parsed.data.conversationId,
-    );
+    let context;
+    try {
+      context = await chat.prepare(
+        parsed.data.content,
+        parsed.data.conversationId,
+        parsed.data.attachmentIds,
+      );
+    } catch (error) {
+      if (error instanceof AttachmentServiceError) {
+        return reply.code(error.statusCode).send({ error: error.message });
+      }
+      throw error;
+    }
 
     for (const [name, value] of Object.entries(reply.getHeaders())) {
       if (value !== undefined) reply.raw.setHeader(name, value);
