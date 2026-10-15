@@ -148,12 +148,28 @@ El MVP incluye:
 
 La aplicación usa `MockProvider` si `OPENCODE_API_KEY` u `OPENCODE_MODEL` no están configurados.
 
-## Próximos hitos recomendados
+## Próxima sesión: memoria conversacional
 
-1. Integrar y probar OpenCode Go con streaming real, límites y telemetría.
+Prioridad inmediata: implementar memoria **aislada por conversación**. Actualmente una consulta nueva puede perder el contexto de los turnos anteriores aunque el historial esté persistido.
+
+Alcance requerido:
+
+1. Enviar el identificador de conversación en cada consulta y reconstruir el contexto desde los mensajes persistidos.
+2. Definir una ventana o presupuesto de tokens, conservando instrucciones y turnos recientes relevantes.
+3. Mantener el streaming, los perfiles `FAST`/`DEFAULT`/`MATH` y el límite `OPENCODE_MAX_TOKENS`.
+4. Evitar filtraciones entre conversaciones y mantener el estado coordinado en `ChatStateService`.
+5. Cubrir continuidad multi-turno, recarga del historial, conversaciones largas y aislamiento con tests de API.
+
+La tarea termina cuando una pregunta de seguimiento puede usar una respuesta anterior después de recargar la conversación, sin afectar otra conversación y sin romper el streaming.
+
+## Backlog futuro
+
+1. Integrar y observar OpenCode Go en streaming real: límites, errores, latencia, coste y telemetría.
 2. Incorporar el sandbox al flujo automático de consultas `SOLVE`, `VERIFY` y `COMPUTE`.
-3. Añadir carga de PDF e imágenes y asociarlos a conversaciones.
-4. Añadir tests de integración para API, PostgreSQL y sandbox.
-5. Preparar configuración cloud, Supabase y autenticación antes de abrir el producto a terceros.
+3. Añadir carga de PDF e imágenes asociadas a conversaciones, con validación y límites de tamaño.
+4. Completar tests de integración para API, PostgreSQL, proveedor, memoria y sandbox.
+5. Preparar despliegue cloud, Supabase, autenticación, autorización y gestión segura de secretos.
+6. Continuar el pulido de UI: accesibilidad, responsive, estados vacíos, errores y regresiones de Markdown/LaTeX.
+7. Medir calidad, coste y consistencia del MVP antes de añadir RAG avanzado, bases vectoriales, agentes complejos o fallbacks automáticos de pago.
 
-Evitar por ahora RAG avanzado, bases vectoriales, agentes complejos, microservicios y fallbacks automáticos de pago hasta validar calidad, coste y consistencia del MVP.
+Cada hito debe conservar la separación por capas, incluir validación proporcional y documentar decisiones que afecten al dominio.
