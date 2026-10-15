@@ -38,3 +38,109 @@ button,
 textarea {
   font: inherit;
 }
+
+.chat .content p {
+  margin: 0 0 0.82rem;
+}
+
+.chat .content > :first-child {
+  margin-top: 0;
+}
+
+.chat .content > :last-child {
+  margin-bottom: 0;
+}
+
+.chat .content h1,
+.chat .content h2,
+.chat .content h3,
+.chat .content h4 {
+  margin: 1.35rem 0 0.58rem;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+}
+
+.chat .content h1:first-child,
+.chat .content h2:first-child,
+.chat .content h3:first-child,
+.chat .content h4:first-child {
+  margin-top: 0;
+}
+
+.chat .content ul,
+.chat .content ol {
+  margin: 0.25rem 0 0.9rem;
+  padding-left: 1.35rem;
+}
+
+.chat .content li + li {
+  margin-top: 0.28rem;
+}
+
+.chat .content blockquote {
+  margin: 0.85rem 0;
+  padding: 0.65rem 0.9rem;
+  border-left: 3px solid var(--color-secondary);
+  border-radius: 0 10px 10px 0;
+  background: color-mix(in srgb, var(--color-brand-soft) 56%, transparent);
+  color: var(--color-muted);
+}
+
+.chat .content pre {
+  overflow-x: auto;
+  margin: 0.9rem 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  background: var(--color-page);
+  font-size: 0.9em;
+  line-height: 1.5;
+}
+
+.chat .content :not(pre) > code {
+  padding: 0.12em 0.35em;
+  border-radius: 5px;
+  background: var(--color-brand-soft);
+  font-size: 0.9em;
+}
+
+.chat .content table {
+  width: 100%;
+  margin: 0.9rem 0;
+  border-collapse: collapse;
+  font-size: 0.95em;
+}
+
+.chat .content th,
+.chat .content td {
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--color-line);
+  text-align: left;
+}
+
+.chat .content th {
+  background: var(--color-brand-soft);
+  font-weight: 700;
+}
+
+.chat .content .math-block {
+  overflow-x: auto;
+  margin: 0.95rem 0 1.05rem;
+  padding: 0.2rem 0.35rem 0.35rem;
+  text-align: center;
+  scrollbar-width: thin;
+}
+
+.chat .content .math-block .katex-display {
+  margin: 0;
+}
+
+.chat .content .katex {
+  font-size: 1.06em;
+}
+
+@media (max-width: 760px) {
+  .chat .content .math-block {
+    text-align: left;
+  }
+}
