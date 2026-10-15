@@ -12,6 +12,21 @@ MVP de un asistente académico para matemáticas e ingeniería. La primera versi
 
 Sin una clave de proveedor, la API usa el proveedor mock y permite validar todo el flujo localmente.
 
+## Adjuntos PDF
+
+El chat permite subir PDFs a una conversación y seleccionar sus textos extraídos
+como material de referencia en consultas posteriores. La API guarda el archivo
+completo en PostgreSQL (`bytea`) y procesa la extracción de forma síncrona; los
+listados solo devuelven metadatos. Se aceptan únicamente PDFs de hasta 10 MiB,
+con un máximo de cinco adjuntos por consulta. Los PDFs sin texto extraíble se
+conservan con estado fallido y no se envían al modelo. Las imágenes y OCR están
+fuera de alcance por ahora.
+
+Configura `PDF_MAX_BYTES` (por defecto `10485760`) y `PDF_MAX_TEXT_CHARS` (por
+defecto `80000`) en `.env` para ajustar el límite binario y el texto máximo que
+entra en el contexto del modelo. Al usar PostgreSQL local, estos bytes forman
+parte del tamaño de la base de datos y se eliminan junto con su conversación.
+
 ## Proveedor real y verificación matemática
 
 El adaptador actual usa el protocolo OpenAI Chat Completions. Configura en
