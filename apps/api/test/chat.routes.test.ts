@@ -1,5 +1,6 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import { ChatRequestSchema } from "@emil-ia/contracts";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { registerChatRoutes } from "../src/routes/chat.routes.js";
 
@@ -86,5 +87,30 @@ describe("chat routes", () => {
     expect(response.body).toContain("event: done");
     expect(response.headers["access-control-allow-origin"]).toBe("http://localhost:4200");
     await app.close();
+  });
+
+  it("accepts a bounded list of UUID attachment IDs", () => {
+    const attachmentIds = Array.from({ length: 5 }, () => crypto.randomUUID());
+
+    expect(
+      ChatRequestSchema.parse({ content: "Resume esto", attachmentIds }),
+    ).toEqual({ content: "Resume esto", attachmentIds });
+  });
+
+  it("rejects more than five attachment IDs", () => {
+    const attachmentIds = Array.from({ length: 6 }, () => crypto.randomUUID());
+
+    expect(() =>
+      ChatRequestSchema.parse({ content: "Resume esto", attachmentIds }),
+    ).toThrow();
+  });
+
+  it("rejects non-UUID attachment IDs", () => {
+    expect(() =>
+      ChatRequestSchema.parse({
+        content: "Resume esto",
+        attachmentIds: ["not-an-attachment-id"],
+      }),
+    ).toThrow();
   });
 });

@@ -16,8 +16,24 @@ export type Intent = z.infer<typeof IntentSchema>;
 export const ChatRequestSchema = z.object({
   conversationId: z.string().uuid().optional(),
   content: z.string().min(1).max(20000),
+  attachmentIds: z.array(z.string().uuid()).max(5).optional(),
 });
 export type ChatRequest = z.infer<typeof ChatRequestSchema>;
+
+export const AttachmentStatusSchema = z.enum(["ready", "failed"]);
+export type AttachmentStatus = z.infer<typeof AttachmentStatusSchema>;
+
+export interface AttachmentMetadata {
+  id: string;
+  conversationId: string;
+  filename: string;
+  mimeType: string;
+  byteSize: number;
+  status: AttachmentStatus;
+  extractionError?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface AIRequest {
   sessionId?: string;

@@ -1,4 +1,8 @@
 import type { SandboxStatus } from "./math-verification.interface.js";
+import type {
+  AttachmentMetadata,
+  AttachmentStatus,
+} from "@emil-ia/contracts";
 
 export interface StoredMessage {
   role: "user" | "assistant";
@@ -29,4 +33,21 @@ export interface AnalyticsSummary {
   executions: number;
   averageLatencyMs: number | null;
   feedback: Record<string, number>;
+}
+
+export interface NewAttachment {
+  id: string;
+  conversationId: string;
+  filename: string;
+  mimeType: string;
+  byteSize: number;
+  content: Buffer;
+  extractedText: string;
+  status: AttachmentStatus;
+  extractionError?: string | null;
+}
+
+export interface StoredAttachment extends AttachmentMetadata {
+  content: Buffer;
+  extractedText: string;
 }
