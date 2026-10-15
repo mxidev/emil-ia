@@ -11,6 +11,32 @@ export interface OpenCodeProviderOptions {
   maxTokens: number;
 }
 
+export interface ProviderLogger {
+  info(fields: Record<string, unknown>, message: string): void;
+  error(fields: Record<string, unknown>, message: string): void;
+}
+
+export type ProviderErrorCode =
+  | "timeout"
+  | "rate_limited"
+  | "http_error"
+  | "invalid_sse"
+  | "empty_response"
+  | "upstream_error"
+  | "stream_incomplete"
+  | "unknown";
+
+class ProviderError extends Error {
+  constructor(
+    message: string,
+    readonly code: ProviderErrorCode,
+    readonly httpStatus?: number,
+  ) {
+    super(message);
+    this.name = "ProviderError";
+  }
+}
+
 const DEFAULT_BASE_URL = "https://opencode.ai/inference/go/v1";
 const DEFAULT_OPTIONS: OpenCodeProviderOptions = {
   connectTimeoutMs: 15000,
@@ -45,47 +71,69 @@ export class OpenCodeProvider implements AIProvider {
     private readonly model: string,
     private readonly planningTimeoutMs = 10000,
     private readonly options: OpenCodeProviderOptions = DEFAULT_OPTIONS,
+    private readonly logger?: ProviderLogger,
   ) {}
 
   async generate(request: AIRequest): Promise<string> {
-    const { response, clearTimeout } = await this.request(
-      request,
-      false,
-      this.planningTimeoutMs,
-      true,
-    );
+    const trackedRequest = this.withSession(request);
+    const startedAt = Date.now();
+    let clearTimeout = () => {};
     try {
-      const body = (await response.json()) as {
-        choices?: Array<{ message?: { content?: unknown } }>;
-      };
-      const content = body.choices?.[0]?.message?.content;
-      if (typeof content !== "string" || !content.trim()) {
-        throw new Error("Proveedor IA no devolvió contenido");
+      const result = await this.request(
+        trackedRequest,
+        false,
+        this.planningTimeoutMs,
+        true,
+      );
+      clearTimeout = result.clearTimeout;
+      try {
+        const body = (await result.response.json()) as {
+          choices?: Array<{ message?: { content?: unknown } }>;
+        };
+        const content = body.choices?.[0]?.message?.content;
+        if (typeof content !== "string" || !content.trim()) {
+          throw new ProviderError(
+            "Proveedor IA no devolvió contenido",
+            "empty_response",
+          );
+        }
+        this.logSuccess(trackedRequest, startedAt);
+        return content;
+      } finally {
+        clearTimeout();
       }
-      return content;
-    } finally {
-      clearTimeout();
+    } catch (error) {
+      this.logFailure(trackedRequest, startedAt, error);
+      throw error;
     }
   }
 
   async *stream(request: AIRequest): AsyncIterable<AIEvent> {
-    const { response } = await this.request(
-      request,
-      true,
-      this.options.connectTimeoutMs,
-    );
-    if (!response.body) throw new Error("Proveedor IA no devolvió contenido");
-
-    const reader = response.body
-      .pipeThrough(new TextDecoderStream())
-      .getReader();
-
-    let buffer = "";
-    let sawDone = false;
-    let inputTokens: number | undefined;
-    let outputTokens: number | undefined;
-
+    const trackedRequest = this.withSession(request);
+    const startedAt = Date.now();
+    let reader: ReadableStreamDefaultReader<string> | undefined;
     try {
+      const { response } = await this.request(
+        trackedRequest,
+        true,
+        this.options.connectTimeoutMs,
+      );
+      if (!response.body) {
+        throw new ProviderError(
+          "Proveedor IA no devolvió contenido",
+          "empty_response",
+        );
+      }
+
+      reader = response.body
+        .pipeThrough(new TextDecoderStream())
+        .getReader();
+
+      let buffer = "";
+      let sawDone = false;
+      let inputTokens: number | undefined;
+      let outputTokens: number | undefined;
+
       while (!sawDone) {
         const { value, done } = await this.readWithIdleTimeout(reader);
         if (done) break;
@@ -108,8 +156,11 @@ export class OpenCodeProvider implements AIProvider {
           }
 
           const payload = this.parseSsePayload(data);
-          if (this.isProviderError(payload)) {
-            throw new Error("Proveedor IA devolvió un error");
+          if (payload.error !== undefined) {
+            throw new ProviderError(
+              "Proveedor IA devolvió un error",
+              "upstream_error",
+            );
           }
           if (typeof payload.usage?.prompt_tokens === "number") {
             inputTokens = payload.usage.prompt_tokens;
@@ -123,24 +174,83 @@ export class OpenCodeProvider implements AIProvider {
           }
         }
       }
-    } finally {
-      try {
-        await reader.cancel();
-      } catch {
-        // Preserve the provider error instead of replacing it with cleanup failure.
-      }
-      reader.releaseLock();
-    }
 
-    if (!sawDone) throw new Error("Proveedor IA terminó sin [DONE]");
-    yield {
-      type: "done",
-      executionId: crypto.randomUUID(),
-      profile: request.profile,
-      intent: request.intent,
-      inputTokens,
-      outputTokens,
-    };
+      if (!sawDone) {
+        throw new ProviderError(
+          "Proveedor IA terminó sin [DONE]",
+          "stream_incomplete",
+        );
+      }
+      this.logSuccess(trackedRequest, startedAt, inputTokens, outputTokens);
+      yield {
+        type: "done",
+        executionId: crypto.randomUUID(),
+        profile: request.profile,
+        intent: request.intent,
+        inputTokens,
+        outputTokens,
+      };
+    } catch (error) {
+      this.logFailure(trackedRequest, startedAt, error);
+      throw error;
+    } finally {
+      if (reader) {
+        try {
+          await reader.cancel();
+        } catch {
+          // Preserve the provider error instead of replacing it with cleanup failure.
+        }
+        reader.releaseLock();
+      }
+    }
+  }
+
+  private withSession(request: AIRequest): AIRequest {
+    return { ...request, sessionId: request.sessionId ?? crypto.randomUUID() };
+  }
+
+  private logSuccess(
+    request: AIRequest,
+    startedAt: number,
+    inputTokens?: number,
+    outputTokens?: number,
+  ): void {
+    this.logger?.info(
+      {
+        provider: "opencode",
+        model: this.model,
+        sessionId: request.sessionId,
+        profile: request.profile,
+        intent: request.intent,
+        durationMs: Date.now() - startedAt,
+        ...(inputTokens === undefined ? {} : { inputTokens }),
+        ...(outputTokens === undefined ? {} : { outputTokens }),
+      },
+      "Provider request completed",
+    );
+  }
+
+  private logFailure(
+    request: AIRequest,
+    startedAt: number,
+    error: unknown,
+  ): void {
+    const classification = classifyProviderError(error);
+    this.logger?.error(
+      {
+        provider: "opencode",
+        model: this.model,
+        sessionId: request.sessionId,
+        profile: request.profile,
+        intent: request.intent,
+        durationMs: Date.now() - startedAt,
+        code: classification.code,
+        ...(classification.httpStatus === undefined
+          ? {}
+          : { httpStatus: classification.httpStatus }),
+      },
+      "Provider request failed",
+    );
   }
 
   private async request(
@@ -176,7 +286,11 @@ export class OpenCodeProvider implements AIProvider {
         },
       );
       if (!response.ok) {
-        throw new Error(`Proveedor IA respondió ${response.status}`);
+        throw new ProviderError(
+          `Proveedor IA respondió ${response.status}`,
+          response.status === 429 ? "rate_limited" : "http_error",
+          response.status,
+        );
       }
       const clearRequestTimeout = () => clearTimeout(timer);
       if (!keepTimeoutUntilBodyRead) clearRequestTimeout();
@@ -218,16 +332,33 @@ export class OpenCodeProvider implements AIProvider {
         error?: unknown;
       };
     } catch {
-      throw new Error("Proveedor IA devolvió SSE inválido");
+      throw new ProviderError(
+        "Proveedor IA devolvió SSE inválido",
+        "invalid_sse",
+      );
     }
-  }
-
-  private isProviderError(payload: { error?: unknown }): boolean {
-    return payload.error !== undefined;
   }
 }
 
-export function createProvider(): AIProvider {
+function classifyProviderError(error: unknown): {
+  code: ProviderErrorCode;
+  httpStatus?: number;
+} {
+  if (error instanceof ProviderError) {
+    return { code: error.code, httpStatus: error.httpStatus };
+  }
+  if (
+    error instanceof Error &&
+    (error.name === "AbortError" ||
+      error.name === "TimeoutError" ||
+      /timeout|tiempo de inactividad/i.test(error.message))
+  ) {
+    return { code: "timeout" };
+  }
+  return { code: "unknown" };
+}
+
+export function createProvider(logger?: ProviderLogger): AIProvider {
   return process.env.OPENCODE_API_KEY && process.env.OPENCODE_MODEL
     ? new OpenCodeProvider(
         process.env.OPENCODE_API_KEY,
@@ -247,6 +378,7 @@ export function createProvider(): AIProvider {
             ) * 1000,
           maxTokens: readBoundedInteger("OPENCODE_MAX_TOKENS", 2048, 128, 8192),
         },
+        logger,
       )
     : new MockProvider();
 }

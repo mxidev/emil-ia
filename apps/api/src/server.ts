@@ -22,7 +22,10 @@ await app.register(cors, {
 });
 await app.register(sensible);
 
-const provider = createProvider();
+const provider = createProvider({
+  info: (fields, message) => app.log.info(fields, message),
+  error: (fields, message) => app.log.error(fields, message),
+});
 const repository = new ConversationRepository(createPostgresPool());
 const sandbox = new SandboxClient();
 const mathVerification = new MathVerificationService(provider, sandbox, app.log);

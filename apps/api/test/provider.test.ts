@@ -196,6 +196,204 @@ describe("provider generation", () => {
     ]);
   });
 
+  it("emits structured success telemetry without logging prompt content", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          streamingResponse([
+            'data: {"choices":[{"delta":{"content":"Hola"}}]}\n\n',
+            'data: {"usage":{"prompt_tokens":3,"completion_tokens":5}}\n\n',
+            "data: [DONE]\n\n",
+          ]),
+        ),
+    );
+    const logger = { info: vi.fn(), error: vi.fn() };
+    const provider = new OpenCodeProvider(
+      "secret",
+      "https://example.test/v1",
+      "math-model",
+      10000,
+      { connectTimeoutMs: 60, idleTimeoutMs: 60, maxTokens: 2048 },
+      logger,
+    );
+
+    await collect(provider);
+
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "opencode",
+        model: "math-model",
+        sessionId: REQUEST.sessionId,
+        profile: "MATH",
+        intent: "COMPUTE",
+        durationMs: expect.any(Number),
+        inputTokens: 3,
+        outputTokens: 5,
+      }),
+      "Provider request completed",
+    );
+    expect(JSON.stringify(logger.info.mock.calls)).not.toContain(
+      "Calcula 2 + 2",
+    );
+  });
+
+  it("classifies rate limits in structured failure telemetry", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response("too many requests", { status: 429 }),
+      ),
+    );
+    const logger = { info: vi.fn(), error: vi.fn() };
+    const provider = new OpenCodeProvider(
+      "secret",
+      "https://example.test/v1",
+      "math-model",
+      10000,
+      { connectTimeoutMs: 60, idleTimeoutMs: 60, maxTokens: 2048 },
+      logger,
+    );
+
+    await expect(collect(provider)).rejects.toThrow(
+      "Proveedor IA respondió 429",
+    );
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "opencode",
+        model: "math-model",
+        sessionId: REQUEST.sessionId,
+        profile: "MATH",
+        intent: "COMPUTE",
+        code: "rate_limited",
+        httpStatus: 429,
+        durationMs: expect.any(Number),
+      }),
+      "Provider request failed",
+    );
+  });
+
+  it("classifies other HTTP failures separately from rate limits", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response("service unavailable", { status: 503 }),
+      ),
+    );
+    const logger = { info: vi.fn(), error: vi.fn() };
+    const provider = new OpenCodeProvider(
+      "secret",
+      "https://example.test/v1",
+      "math-model",
+      10000,
+      { connectTimeoutMs: 60, idleTimeoutMs: 60, maxTokens: 2048 },
+      logger,
+    );
+
+    await expect(collect(provider)).rejects.toThrow();
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "http_error", httpStatus: 503 }),
+      "Provider request failed",
+    );
+  });
+
+  it("classifies malformed SSE payloads", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(streamingResponse(["data: invalid-json\n\n"])),
+    );
+    const logger = { info: vi.fn(), error: vi.fn() };
+    const provider = new OpenCodeProvider(
+      "secret",
+      "https://example.test/v1",
+      "math-model",
+      10000,
+      { connectTimeoutMs: 60, idleTimeoutMs: 60, maxTokens: 2048 },
+      logger,
+    );
+
+    await expect(collect(provider)).rejects.toThrow();
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "invalid_sse" }),
+      "Provider request failed",
+    );
+  });
+
+  it("classifies an empty provider response", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(null, { status: 200 })),
+    );
+    const logger = { info: vi.fn(), error: vi.fn() };
+    const provider = new OpenCodeProvider(
+      "secret",
+      "https://example.test/v1",
+      "math-model",
+      10000,
+      { connectTimeoutMs: 60, idleTimeoutMs: 60, maxTokens: 2048 },
+      logger,
+    );
+
+    await expect(collect(provider)).rejects.toThrow();
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "empty_response" }),
+      "Provider request failed",
+    );
+  });
+
+  it("classifies upstream provider errors", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        streamingResponse([
+          'data: {"error":{"message":"upstream detail"}}\n\n',
+        ]),
+      ),
+    );
+    const logger = { info: vi.fn(), error: vi.fn() };
+    const provider = new OpenCodeProvider(
+      "secret",
+      "https://example.test/v1",
+      "math-model",
+      10000,
+      { connectTimeoutMs: 60, idleTimeoutMs: 60, maxTokens: 2048 },
+      logger,
+    );
+
+    await expect(collect(provider)).rejects.toThrow();
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "upstream_error" }),
+      "Provider request failed",
+    );
+  });
+
+  it("classifies a stream that ends before the done marker", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        streamingResponse([
+          'data: {"choices":[{"delta":{"content":"Hola"}}]}\n\n',
+        ]),
+      ),
+    );
+    const logger = { info: vi.fn(), error: vi.fn() };
+    const provider = new OpenCodeProvider(
+      "secret",
+      "https://example.test/v1",
+      "math-model",
+      10000,
+      { connectTimeoutMs: 60, idleTimeoutMs: 60, maxTokens: 2048 },
+      logger,
+    );
+
+    await expect(collect(provider)).rejects.toThrow();
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "stream_incomplete" }),
+      "Provider request failed",
+    );
+  });
+
   it("accepts an SSE CRLF delimiter split across chunks", async () => {
     vi.stubGlobal(
       "fetch",
@@ -333,16 +531,22 @@ describe("provider generation", () => {
           new Response(new ReadableStream({ start() {} }), { status: 200 }),
         ),
     );
+    const logger = { info: vi.fn(), error: vi.fn() };
     const provider = new OpenCodeProvider(
       "secret",
       "https://example.test/v1",
       "math-model",
       10000,
       { connectTimeoutMs: 60, idleTimeoutMs: 5, maxTokens: 2048 },
+      logger,
     );
 
     await expect(collect(provider)).rejects.toThrow(
       "Proveedor IA agotó el tiempo de inactividad",
+    );
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "timeout" }),
+      "Provider request failed",
     );
   }, 100);
 });
