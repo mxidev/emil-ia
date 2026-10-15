@@ -163,6 +163,7 @@ button:active:not(:disabled) {
 
   .history {
     padding: 10px 14px;
+    overflow: hidden;
   }
 
   .heading {
@@ -170,10 +171,14 @@ button:active:not(:disabled) {
   }
 
   .conversation-list {
+    display: flex;
     flex: none;
+    min-width: 0;
     flex-direction: row;
+    gap: 6px;
     overflow-x: auto;
     overflow-y: hidden;
+    overscroll-behavior-x: contain;
     padding-bottom: 4px;
   }
 
@@ -181,6 +186,7 @@ button:active:not(:disabled) {
     flex: none;
     width: auto;
     max-width: 180px;
+    min-height: 44px;
     padding: 8px 10px;
     border-color: var(--color-line);
     background: var(--color-surface);
@@ -193,6 +199,7 @@ button:active:not(:disabled) {
 
   .actions button {
     flex: none;
+    min-height: 44px;
     padding: 6px 9px;
   }
 }

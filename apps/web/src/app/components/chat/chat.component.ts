@@ -46,6 +46,13 @@ export class ChatComponent {
     this.attachmentsExpanded = !this.attachmentsExpanded;
   }
 
+  onAttachmentKeydown(event: Event): void {
+    const keyboardEvent = event as KeyboardEvent;
+    if (keyboardEvent.key !== "Escape") return;
+    keyboardEvent.preventDefault();
+    this.attachmentsExpanded = false;
+  }
+
   removeAttachment(event: Event, attachmentId: string): void {
     event.stopPropagation();
     if (!window.confirm("¿Eliminar este PDF de la conversación?")) return;

@@ -159,7 +159,8 @@ article {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 36px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 0 10px;
   border: 1px solid var(--color-line);
   border-radius: 9px;
@@ -204,28 +205,18 @@ article {
   z-index: 2;
   bottom: calc(100% + 8px);
   left: -8px;
-  width: 150px;
+  width: min(280px, calc(100vw - 44px));
   max-height: 270px;
   padding: 8px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   border: 1px solid var(--color-line);
   border-radius: 12px;
   background: var(--color-surface);
   box-shadow: 0 10px 30px #72431922;
+  transform-origin: bottom left;
 }
 
-.attachment-popover-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 3px 3px 8px;
-  color: var(--color-muted);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.attachment-close,
 .attachment-remove {
   display: inline-flex !important;
   align-items: center;
@@ -240,12 +231,6 @@ article {
   font-size: 17px !important;
   font-weight: 400 !important;
   cursor: pointer;
-}
-
-.attachment-close:hover,
-.attachment-remove:hover {
-  background: var(--color-accent) !important;
-  color: var(--color-brand) !important;
 }
 
 .attachment-list {
@@ -273,7 +258,7 @@ article {
   justify-content: space-between;
   gap: 8px;
   min-width: 0;
-  min-height: 26px !important;
+  min-height: 36px !important;
   padding: 4px 5px !important;
   border: 0 !important;
   border-radius: 5px !important;
@@ -311,6 +296,11 @@ article {
   opacity: 0.65;
 }
 
+.attachment-remove {
+  min-width: 36px !important;
+  min-height: 36px;
+}
+
 .composer:focus-within {
   border-color: var(--color-brand);
   box-shadow: 0 0 0 3px #7243191f;
@@ -327,7 +317,7 @@ article {
   outline: 0;
   background: transparent;
   color: var(--color-ink);
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.4;
 }
 
@@ -371,11 +361,19 @@ button:focus-visible {
   .composer button:not(:disabled):hover {
     background: var(--color-brand-hover);
   }
+
+  .attachment-remove:hover {
+    background: var(--color-accent) !important;
+    color: var(--color-brand) !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .suggestions button,
   .feedback button,
+  .attachment-summary,
+  .attachment-remove,
+  .attachment-toggle,
   .composer,
   .composer button {
     transition: none;
@@ -403,6 +401,6 @@ button:focus-visible {
 
   .composer {
     width: calc(100% - 28px);
-    margin-bottom: max(12px, env(safe-area-inset-bottom));
+    margin-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   }
 }

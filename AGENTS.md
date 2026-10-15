@@ -144,32 +144,19 @@ El MVP incluye:
 - Feedback positivo/negativo persistido.
 - Resumen de analítica en `/api/analytics/summary`.
 - Sandbox Python expuesto internamente mediante `/api/tools/python`.
+- Memoria conversacional aislada por conversación, con continuidad tras recargar el historial.
+- Adjuntos PDF con extracción de texto, almacenamiento completo en PostgreSQL y gestión desde el chat.
 - Podman configurado para PostgreSQL y sandbox.
 
 La aplicación usa `MockProvider` si `OPENCODE_API_KEY` u `OPENCODE_MODEL` no están configurados.
 
-## Próxima sesión: memoria conversacional
-
-Prioridad inmediata: implementar memoria **aislada por conversación**. Actualmente una consulta nueva puede perder el contexto de los turnos anteriores aunque el historial esté persistido.
-
-Alcance requerido:
-
-1. Enviar el identificador de conversación en cada consulta y reconstruir el contexto desde los mensajes persistidos.
-2. Definir una ventana o presupuesto de tokens, conservando instrucciones y turnos recientes relevantes.
-3. Mantener el streaming, los perfiles `FAST`/`DEFAULT`/`MATH` y el límite `OPENCODE_MAX_TOKENS`.
-4. Evitar filtraciones entre conversaciones y mantener el estado coordinado en `ChatStateService`.
-5. Cubrir continuidad multi-turno, recarga del historial, conversaciones largas y aislamiento con tests de API.
-
-La tarea termina cuando una pregunta de seguimiento puede usar una respuesta anterior después de recargar la conversación, sin afectar otra conversación y sin romper el streaming.
-
 ## Backlog futuro
 
-1. Integrar y observar OpenCode Go en streaming real: límites, errores, latencia, coste y telemetría.
-2. Incorporar el sandbox al flujo automático de consultas `SOLVE`, `VERIFY` y `COMPUTE`.
-3. Añadir carga de PDF e imágenes asociadas a conversaciones, con validación y límites de tamaño.
-4. Completar tests de integración para API, PostgreSQL, proveedor, memoria y sandbox.
-5. Preparar despliegue cloud, Supabase, autenticación, autorización y gestión segura de secretos.
-6. Continuar el pulido de UI: accesibilidad, responsive, estados vacíos, errores y regresiones de Markdown/LaTeX.
-7. Medir calidad, coste y consistencia del MVP antes de añadir RAG avanzado, bases vectoriales, agentes complejos o fallbacks automáticos de pago.
+1. Operar OpenCode Go con métricas de coste, latencia, errores, límites y evaluación de calidad del modelo.
+2. Ampliar los tests de integración para ciclos completos de adjuntos, proveedor, memoria y sandbox.
+3. Preparar despliegue cloud, Supabase, autenticación, autorización, backups y gestión segura de secretos.
+4. Continuar el pulido de UI: accesibilidad, responsive, estados vacíos, errores y regresiones de Markdown/LaTeX.
+5. Medir calidad, coste y consistencia del MVP antes de añadir RAG avanzado, bases vectoriales, agentes complejos o fallbacks automáticos de pago.
+6. Mantener imágenes y OCR fuera de alcance hasta que el flujo PDF y sus límites operativos estén consolidados.
 
 Cada hito debe conservar la separación por capas, incluir validación proporcional y documentar decisiones que afecten al dominio.
