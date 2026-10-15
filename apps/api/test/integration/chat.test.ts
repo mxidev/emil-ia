@@ -1,4 +1,5 @@
 import { afterEach, expect, it } from "vitest";
+import type { AIRequest } from "@emil-ia/contracts";
 import type { AIProvider } from "../../src/provider.js";
 import { createIntegrationApp } from "./fixture.js";
 
@@ -25,6 +26,31 @@ const provider: AIProvider = {
     };
   },
 };
+
+function contextualProvider(requests: AIRequest[]): AIProvider {
+  return {
+    async generate() {
+      return null;
+    },
+    async *stream(request) {
+      requests.push({ ...request, messages: [...request.messages] });
+      const hasPreviousAnswer = request.messages.some(
+        (message) =>
+          message.role === "assistant" && message.content === "Primer resultado",
+      );
+      yield {
+        type: "text",
+        delta: hasPreviousAnswer ? "Respuesta con contexto" : "Primer resultado",
+      };
+      yield {
+        type: "done",
+        executionId: crypto.randomUUID(),
+        profile: request.profile,
+        intent: request.intent,
+      };
+    },
+  };
+}
 
 it("persists a sandbox-verified answer that can be retrieved through history", async () => {
   fixture = await createIntegrationApp(provider);
@@ -110,5 +136,82 @@ it("does not save a partial assistant answer or execution when the provider fail
     conversations: 1,
     messages: 1,
     executions: 0,
+  });
+});
+
+it("reconstructs conversation context after history is loaded again", async () => {
+  const requests: AIRequest[] = [];
+  fixture = await createIntegrationApp(contextualProvider(requests));
+
+  const first = await fixture.app.inject({
+    method: "POST",
+    url: "/api/chat",
+    payload: { content: "Explica la idea principal" },
+  });
+  const conversationId = first.headers["x-conversation-id"];
+
+  const history = await fixture.app.inject({
+    url: `/api/conversations/${conversationId}/messages`,
+  });
+  expect(history.json()).toEqual([
+    { role: "user", content: "Explica la idea principal" },
+    { role: "assistant", content: "Primer resultado" },
+  ]);
+
+  const followUp = await fixture.app.inject({
+    method: "POST",
+    url: "/api/chat",
+    payload: {
+      conversationId,
+      content: "Ahora resume esa respuesta",
+    },
+  });
+
+  expect(followUp.statusCode).toBe(200);
+  expect(followUp.body).toContain('"delta":"Respuesta con contexto"');
+  expect(followUp.body).toContain("event: done");
+  expect(requests[1].messages).toEqual([
+    { role: "user", content: "Explica la idea principal" },
+    { role: "assistant", content: "Primer resultado" },
+    { role: "user", content: "Ahora resume esa respuesta" },
+  ]);
+});
+
+it("keeps provider context isolated between conversations", async () => {
+  const requests: AIRequest[] = [];
+  fixture = await createIntegrationApp(contextualProvider(requests));
+
+  const firstConversation = await fixture.app.inject({
+    method: "POST",
+    url: "/api/chat",
+    payload: { content: "Explica el concepto A" },
+  });
+  const firstId = firstConversation.headers["x-conversation-id"];
+
+  const secondConversation = await fixture.app.inject({
+    method: "POST",
+    url: "/api/chat",
+    payload: { content: "Explica el concepto B" },
+  });
+  const secondId = secondConversation.headers["x-conversation-id"];
+
+  await fixture.app.inject({
+    method: "POST",
+    url: "/api/chat",
+    payload: {
+      conversationId: firstId,
+      content: "Compara con el concepto inicial",
+    },
+  });
+
+  expect(firstId).not.toBe(secondId);
+  expect(requests[2].messages).toEqual([
+    { role: "user", content: "Explica el concepto A" },
+    { role: "assistant", content: "Primer resultado" },
+    { role: "user", content: "Compara con el concepto inicial" },
+  ]);
+  expect(requests[2].messages).not.toContainEqual({
+    role: "user",
+    content: "Explica el concepto B",
   });
 });
