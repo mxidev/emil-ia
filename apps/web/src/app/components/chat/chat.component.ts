@@ -11,6 +11,8 @@ import { MarkdownService } from "../../services/markdown.service";
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ChatComponent {
+  attachmentsExpanded = false;
+
   constructor(
     readonly state: ChatStateService,
     private readonly markdown: MarkdownService,
@@ -38,5 +40,15 @@ export class ChatComponent {
     const file = input.files?.[0];
     input.value = "";
     if (file) void this.state.uploadAttachment(file);
+  }
+
+  toggleAttachments(): void {
+    this.attachmentsExpanded = !this.attachmentsExpanded;
+  }
+
+  removeAttachment(event: Event, attachmentId: string): void {
+    event.stopPropagation();
+    if (!window.confirm("¿Eliminar este PDF de la conversación?")) return;
+    void this.state.deleteAttachment(attachmentId);
   }
 }

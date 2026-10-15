@@ -5,6 +5,7 @@ import multipart from "@fastify/multipart";
 import sensible from "@fastify/sensible";
 import { createPostgresPool } from "./database/postgres.client.js";
 import { createProvider } from "./provider.js";
+import { createCorsOptions } from "./cors.js";
 import { ConversationRepository } from "./repositories/conversation.repository.js";
 import { registerAnalyticsRoutes } from "./routes/analytics.routes.js";
 import { registerAttachmentRoutes } from "./routes/attachment.routes.js";
@@ -25,7 +26,7 @@ dotenv.config({ path: "../../.env" });
 
 const app = Fastify({ logger: true });
 await app.register(cors, {
-  origin: process.env.CORS_ORIGIN ?? "http://localhost:4200",
+  ...createCorsOptions(),
 });
 await app.register(sensible);
 await app.register(multipart, {

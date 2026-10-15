@@ -4,7 +4,10 @@ import {
   type AttachmentService,
 } from "../services/attachment.service.js";
 
-type AttachmentRouteService = Pick<AttachmentService, "upload" | "list">;
+type AttachmentRouteService = Pick<
+  AttachmentService,
+  "upload" | "list" | "deleteAttachment"
+>;
 
 function sendAttachmentError(reply: FastifyReply, error: unknown) {
   if (error instanceof AttachmentServiceError) {
@@ -51,4 +54,20 @@ export function registerAttachmentRoutes(
       return sendAttachmentError(reply, error);
     }
   });
+
+  app.delete(
+    "/api/conversations/:id/attachments/:attachmentId",
+    async (request, reply) => {
+      try {
+        const { id, attachmentId } = request.params as {
+          id: string;
+          attachmentId: string;
+        };
+        await service.deleteAttachment(id, attachmentId);
+        return reply.code(204).send();
+      } catch (error) {
+        return sendAttachmentError(reply, error);
+      }
+    },
+  );
 }

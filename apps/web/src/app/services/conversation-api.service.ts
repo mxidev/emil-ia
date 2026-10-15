@@ -40,6 +40,17 @@ export class ConversationApiService {
     return response.json() as Promise<Attachment>;
   }
 
+  async deleteAttachment(
+    conversationId: string,
+    attachmentId: string,
+  ): Promise<void> {
+    const response = await fetch(
+      `${API_BASE_URL}/conversations/${conversationId}/attachments/${attachmentId}`,
+      { method: "DELETE" },
+    );
+    if (!response.ok) throw new Error(`La API respondió ${response.status}`);
+  }
+
   async feedback(
     conversationId: string,
     rating: FeedbackRating,

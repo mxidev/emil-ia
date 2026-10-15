@@ -41,6 +41,7 @@ function multipartPdf(
 async function createApp(service: {
   upload: (...args: never[]) => Promise<AttachmentMetadata>;
   list: (...args: never[]) => Promise<AttachmentMetadata[]>;
+  deleteAttachment: (...args: never[]) => Promise<void>;
 }) {
   const app = Fastify();
   await app.register(sensible);
@@ -64,6 +65,7 @@ describe("attachment routes", () => {
     const service = {
       upload: vi.fn(async () => metadata),
       list: vi.fn(async () => [metadata]),
+      deleteAttachment: vi.fn(async () => {}),
     };
     app = await createApp(service);
     const upload = multipartPdf();
@@ -91,6 +93,7 @@ describe("attachment routes", () => {
     const service = {
       upload: vi.fn(async () => metadata),
       list: vi.fn(async () => [metadata]),
+      deleteAttachment: vi.fn(async () => {}),
     };
     app = await createApp(service);
 
@@ -111,6 +114,7 @@ describe("attachment routes", () => {
         .mockRejectedValueOnce(new AttachmentValidationError("Only PDFs"))
         .mockRejectedValueOnce(new AttachmentNotFoundError("Not found")),
       list: vi.fn(async () => [metadata]),
+      deleteAttachment: vi.fn(async () => {}),
     };
     app = await createApp(service);
     const upload = multipartPdf();
@@ -137,6 +141,7 @@ describe("attachment routes", () => {
     const service = {
       upload: vi.fn(async () => failed),
       list: vi.fn(async () => [failed]),
+      deleteAttachment: vi.fn(async () => {}),
     };
     app = await createApp(service);
 
@@ -156,6 +161,7 @@ describe("attachment routes", () => {
     const service = {
       upload: vi.fn(async () => metadata),
       list: vi.fn(async () => [metadata]),
+      deleteAttachment: vi.fn(async () => {}),
     };
     app = await createApp(service);
     const upload = multipartPdf(Buffer.concat([Buffer.from("%PDF-1.7"), Buffer.alloc(10 * 1024 * 1024)]));
@@ -169,5 +175,25 @@ describe("attachment routes", () => {
 
     expect(response.statusCode).toBe(413);
     expect(service.upload).not.toHaveBeenCalled();
+  });
+
+  it("deletes an attachment from its conversation", async () => {
+    const service = {
+      upload: vi.fn(async () => metadata),
+      list: vi.fn(async () => [metadata]),
+      deleteAttachment: vi.fn(async () => {}),
+    };
+    app = await createApp(service);
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: `/api/conversations/${conversationId}/attachments/${metadata.id}`,
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(service.deleteAttachment).toHaveBeenCalledWith(
+      conversationId,
+      metadata.id,
+    );
   });
 });

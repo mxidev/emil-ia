@@ -21,6 +21,8 @@ export const DATABASE_QUERIES = {
     'INSERT INTO attachments (id, conversation_id, filename, mime_type, byte_size, content, extracted_text, status, extraction_error) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, conversation_id AS "conversationId", filename, mime_type AS "mimeType", byte_size AS "byteSize", status, extraction_error AS "extractionError", created_at AS "createdAt", updated_at AS "updatedAt"',
   listAttachments:
     'SELECT id, conversation_id AS "conversationId", filename, mime_type AS "mimeType", byte_size AS "byteSize", status, extraction_error AS "extractionError", created_at AS "createdAt", updated_at AS "updatedAt" FROM attachments WHERE conversation_id = $1 ORDER BY created_at ASC',
+  deleteAttachment:
+    "DELETE FROM attachments WHERE conversation_id = $1 AND id = $2 RETURNING id",
   getAttachmentsForChat:
     'SELECT id, conversation_id AS "conversationId", filename, mime_type AS "mimeType", byte_size AS "byteSize", content, extracted_text AS "extractedText", status, extraction_error AS "extractionError", created_at AS "createdAt", updated_at AS "updatedAt" FROM attachments WHERE conversation_id = $1 AND id = ANY($2::uuid[]) ORDER BY created_at ASC',
   countConversations:

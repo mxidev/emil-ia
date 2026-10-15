@@ -15,6 +15,7 @@ type AttachmentRepository = Pick<
   | "findConversationTitle"
   | "createAttachment"
   | "listAttachments"
+  | "deleteAttachment"
   | "getAttachmentsForChat"
 >;
 
@@ -140,6 +141,19 @@ export class AttachmentService {
       throw new AttachmentNotFoundError("Conversation not found");
     }
     return this.repository.listAttachments(conversationId);
+  }
+
+  async deleteAttachment(
+    conversationId: string,
+    attachmentId: string,
+  ): Promise<void> {
+    const deleted = await this.repository.deleteAttachment(
+      conversationId,
+      attachmentId,
+    );
+    if (!deleted) {
+      throw new AttachmentNotFoundError("Attachment not found in conversation");
+    }
   }
 
   async getContext(

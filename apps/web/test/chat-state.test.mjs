@@ -27,6 +27,7 @@ function setup(overrides = {}) {
       createdAt: "2026-10-15T00:00:00.000Z",
       updatedAt: "2026-10-15T00:00:00.000Z",
     }),
+    deleteAttachment: async () => {},
     download: async () => {},
     feedback: async () => {},
     ...overrides.conversationApi,
@@ -235,4 +236,35 @@ test("send forwards selected PDF IDs to the chat API", async () => {
     conversationId: "conversation-1",
     attachmentIds: ["attachment-1"],
   });
+});
+
+test("deletes a PDF from the conversation and current selection", async () => {
+  const deleted = [];
+  const attachment = {
+    id: "attachment-1",
+    conversationId: "conversation-1",
+    filename: "notes.pdf",
+    mimeType: "application/pdf",
+    byteSize: 16,
+    status: "ready",
+    extractionError: null,
+    createdAt: "2026-10-15T00:00:00.000Z",
+    updatedAt: "2026-10-15T00:00:00.000Z",
+  };
+  const { state } = setup({
+    conversationApi: {
+      deleteAttachment: async (conversationId, attachmentId) => {
+        deleted.push([conversationId, attachmentId]);
+      },
+    },
+  });
+  state.conversationId.set("conversation-1");
+  state.attachments.set([attachment]);
+  state.selectedAttachmentIds.set([attachment.id]);
+
+  await state.deleteAttachment(attachment.id);
+
+  assert.deepEqual(deleted, [["conversation-1", "attachment-1"]]);
+  assert.deepEqual(state.attachments(), []);
+  assert.deepEqual(state.selectedAttachmentIds(), []);
 });

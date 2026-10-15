@@ -2,6 +2,7 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { ChatRequestSchema } from "@emil-ia/contracts";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createCorsOptions } from "../src/cors.js";
 import { registerChatRoutes } from "../src/routes/chat.routes.js";
 import { AttachmentNotFoundError } from "../src/services/attachment.service.js";
 
@@ -62,7 +63,7 @@ describe("chat routes", () => {
 
   it("allows the browser to read the streamed response across origins", async () => {
     const app = Fastify();
-    await app.register(cors, { origin: "http://localhost:4200" });
+    await app.register(cors, createCorsOptions());
     registerChatRoutes(app, {
       prepare: async () => ({
         conversationId: "00000000-0000-4000-8000-000000000001",
@@ -87,6 +88,12 @@ describe("chat routes", () => {
     expect(response.statusCode).toBe(200);
     expect(response.body).toContain("event: done");
     expect(response.headers["access-control-allow-origin"]).toBe("http://localhost:4200");
+    expect(response.headers["x-conversation-id"]).toBe(
+      "00000000-0000-4000-8000-000000000001",
+    );
+    expect(response.headers["access-control-expose-headers"]).toContain(
+      "x-conversation-id",
+    );
     await app.close();
   });
 

@@ -93,6 +93,25 @@ export class ChatStateService {
     }
   }
 
+  async deleteAttachment(attachmentId: string): Promise<void> {
+    const conversationId = this.conversationId();
+    if (!conversationId) return;
+
+    try {
+      await this.conversationApi.deleteAttachment(
+        conversationId,
+        attachmentId,
+      );
+      this.attachments.update((attachments) =>
+        attachments.filter((attachment) => attachment.id !== attachmentId),
+      );
+      this.removeAttachmentSelection(attachmentId);
+      this.error.set(null);
+    } catch (error) {
+      this.setError(error);
+    }
+  }
+
   removeAttachmentSelection(id: string): void {
     this.selectedAttachmentIds.update((ids) => ids.filter((value) => value !== id));
   }

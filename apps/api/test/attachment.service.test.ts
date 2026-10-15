@@ -65,6 +65,7 @@ function setup(options?: {
     }),
     listAttachments: vi.fn(async () => [metadata()]),
     getAttachmentsForChat: vi.fn(async () => options?.attachments ?? []),
+    deleteAttachment: vi.fn(async () => true),
   };
   const extractor: PdfTextExtractor = {
     extract: options?.extract ?? (async () => "Texto extraído"),
@@ -174,6 +175,26 @@ describe("AttachmentService", () => {
     expect(result).toEqual([metadata()]);
     expect(result[0]).not.toHaveProperty("content");
     expect(repository.listAttachments).toHaveBeenCalledWith(conversationId);
+  });
+
+  it("deletes an attachment only within its conversation", async () => {
+    const { service, repository } = setup();
+
+    await service.deleteAttachment(conversationId, attachmentId);
+
+    expect(repository.deleteAttachment).toHaveBeenCalledWith(
+      conversationId,
+      attachmentId,
+    );
+  });
+
+  it("returns not found when the attachment is not owned by the conversation", async () => {
+    const { service, repository } = setup();
+    repository.deleteAttachment.mockResolvedValue(false);
+
+    await expect(
+      service.deleteAttachment(conversationId, otherAttachmentId),
+    ).rejects.toMatchObject({ statusCode: 404 });
   });
 
   it("rejects attachment IDs from another conversation", async () => {

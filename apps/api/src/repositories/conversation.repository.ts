@@ -150,6 +150,17 @@ export class ConversationRepository {
     return result.rows.map(mapAttachmentMetadata);
   }
 
+  async deleteAttachment(
+    conversationId: string,
+    attachmentId: string,
+  ): Promise<boolean> {
+    const result = await this.pool.query<{ id: string }>(
+      DATABASE_QUERIES.deleteAttachment,
+      [conversationId, attachmentId],
+    );
+    return result.rowCount === 1;
+  }
+
   async getAttachmentsForChat(
     conversationId: string,
     ids: string[],
