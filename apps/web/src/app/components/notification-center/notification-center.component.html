@@ -1,7 +1,8 @@
-<aside class="notification-center" aria-label="Avisos">
+<aside class="notification-center" aria-label="Avisos" tabindex="-1">
   @for (notice of notifications.notifications(); track notice.id) {
     <section
       class="notice"
+      [attr.data-notice-id]="notice.id"
       [class.closing]="notice.closing"
       [class.notice-error]="notice.kind === 'error'"
       [class.notice-warning]="notice.kind === 'warning'"

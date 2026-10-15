@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { NotificationStore } from "../src/app/services/notification-store.ts";
+import { shouldMoveFocusIntoNotificationCenter } from "../src/app/components/notification-center/notification-center.component.ts";
 
 class FakeClock {
   now = 0;
@@ -96,4 +97,10 @@ test("manual dismissal cancels expiry and completes exit once", () => {
   assert.deepEqual(store.notifications(), []);
   clock.advance(10_000);
   assert.deepEqual(store.notifications(), []);
+});
+
+test("focus returns to the center when its focused notice starts closing", () => {
+  assert.equal(shouldMoveFocusIntoNotificationCenter(7, [7]), true);
+  assert.equal(shouldMoveFocusIntoNotificationCenter(7, [8]), false);
+  assert.equal(shouldMoveFocusIntoNotificationCenter(null, [7]), false);
 });

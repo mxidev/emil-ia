@@ -62,6 +62,25 @@ test("an SSE error publishes one notice even when the stream completes", async (
   );
 });
 
+test("an SSE error followed by a rejected stream publishes only one notice", async () => {
+  const { state, notices } = setup({
+    chatApi: {
+      stream: async (_request, handlers) => {
+        handlers.onError("Modelo no disponible");
+        throw new Error("ConexiÃ³n cerrada");
+      },
+    },
+  });
+  state.draft.set("Hola");
+
+  await state.send();
+
+  assert.deepEqual(
+    notices.notifications().map(({ kind, message }) => ({ kind, message })),
+    [{ kind: "error", message: "Modelo no disponible" }],
+  );
+});
+
 test("successful export and feedback publish confirmations", async () => {
   const { state, notices } = setup();
   state.conversationId.set("conversation-1");

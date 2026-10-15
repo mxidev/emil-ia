@@ -1,20 +1,10 @@
 import { signal } from "@angular/core";
-
-export type NotificationKind = "error" | "warning" | "success" | "info" | "tip";
-
-export interface NotificationRecord {
-  id: number;
-  kind: NotificationKind;
-  message: string;
-  closing: boolean;
-}
-
-type TimerHandle = ReturnType<typeof setTimeout>;
-
-export interface NotificationClock {
-  schedule(callback: () => void, delayMs: number): TimerHandle;
-  cancel(handle: TimerHandle): void;
-}
+import type {
+  NotificationClock,
+  NotificationKind,
+  NotificationRecord,
+  NotificationTimerHandle,
+} from "../interfaces/notification.interface";
 
 const defaultClock: NotificationClock = {
   schedule: (callback, delayMs) => setTimeout(callback, delayMs),
@@ -28,7 +18,7 @@ export class NotificationStore {
   private readonly clock: NotificationClock;
   private readonly timers = new Map<
     number,
-    { expiry?: TimerHandle; removal?: TimerHandle }
+    { expiry?: NotificationTimerHandle; removal?: NotificationTimerHandle }
   >();
 
   constructor(clock: NotificationClock = defaultClock) {
