@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component } from "@angular/core";
+import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { ChatStateService } from "../../services/chat-state.service";
 import { MarkdownService } from "../../services/markdown.service";
 
@@ -13,10 +14,11 @@ export class ChatComponent {
   constructor(
     readonly state: ChatStateService,
     private readonly markdown: MarkdownService,
+    private readonly sanitizer: DomSanitizer,
   ) {}
 
-  render(content: string): string {
-    return this.markdown.render(content);
+  render(content: string): SafeHtml {
+    return this.sanitizer.bypassSecurityTrustHtml(this.markdown.render(content));
   }
 
   useSuggestion(text: string): void {

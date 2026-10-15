@@ -1,6 +1,6 @@
 import { Injectable } from "@angular/core";
 import katex from "katex";
-import { marked } from "marked";
+import { marked, Renderer } from "marked";
 
 interface MathToken {
   placeholder: string;
@@ -12,6 +12,11 @@ interface MathToken {
 export class MarkdownService {
   private readonly tokenPattern =
     /(```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`\n]*`)|(\$\$[\s\S]*?\$\$|\$[^$\n]+\$|\\\([\s\S]*?\\\)|\\\[[\s\S]*?\\\])/g;
+  private readonly markdownRenderer = new Renderer();
+
+  constructor() {
+    this.markdownRenderer.html = ({ text }) => escapeHtml(text);
+  }
 
   render(content: string): string {
     const mathTokens: MathToken[] = [];
@@ -37,7 +42,10 @@ export class MarkdownService {
       },
     );
 
-    let rendered = marked.parse(markdown, { async: false }) as string;
+    let rendered = marked.parse(markdown, {
+      async: false,
+      renderer: this.markdownRenderer,
+    }) as string;
     for (const token of mathTokens) {
       if (token.displayMode) {
         const paragraph = new RegExp(
@@ -60,4 +68,13 @@ export class MarkdownService {
       throwOnError: false,
     });
   }
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
