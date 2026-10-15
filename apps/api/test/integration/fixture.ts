@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import multipart from "@fastify/multipart";
 import sensible from "@fastify/sensible";
 import { Pool } from "pg";
 import type { AIProvider } from "../../src/provider.js";
@@ -6,10 +7,13 @@ import { ConversationRepository } from "../../src/repositories/conversation.repo
 import { registerChatRoutes } from "../../src/routes/chat.routes.js";
 import { registerConversationRoutes } from "../../src/routes/conversation.routes.js";
 import { registerAnalyticsRoutes } from "../../src/routes/analytics.routes.js";
+import { registerAttachmentRoutes } from "../../src/routes/attachment.routes.js";
 import { ChatService } from "../../src/services/chat.service.js";
 import { ExportService } from "../../src/services/export.service.js";
 import { MathVerificationService } from "../../src/services/math-verification.service.js";
 import { SandboxClient } from "../../src/sandbox.js";
+import { AttachmentService, configuredPdfMaxBytes } from "../../src/services/attachment.service.js";
+import { PdfParseTextExtractor } from "../../src/services/pdf-text-extractor.js";
 
 // Never read .env or DATABASE_URL: this harness only uses explicit test settings.
 export async function createIntegrationApp(provider: AIProvider) {
@@ -73,8 +77,15 @@ export async function createIntegrationApp(provider: AIProvider) {
     const sandbox = new SandboxClient(sandboxUrl);
     const verifier = new MathVerificationService(provider, sandbox);
     await app.register(sensible);
+    await app.register(multipart, {
+      limits: { files: 1, fileSize: configuredPdfMaxBytes() },
+    });
     registerChatRoutes(app, new ChatService(repository, provider, verifier));
     registerConversationRoutes(app, repository, new ExportService(repository));
+    registerAttachmentRoutes(
+      app,
+      new AttachmentService(repository, new PdfParseTextExtractor()),
+    );
     registerAnalyticsRoutes(app, repository);
     await app.ready();
     return { app, close };

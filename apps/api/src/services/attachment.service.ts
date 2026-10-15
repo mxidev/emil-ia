@@ -54,6 +54,10 @@ function boundedInteger(value: string | undefined, fallback: number): number {
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+export function configuredPdfMaxBytes(): number {
+  return boundedInteger(process.env.PDF_MAX_BYTES, DEFAULT_PDF_MAX_BYTES);
+}
+
 function sanitizeFilename(filename: string): string {
   const sanitized = filename
     .replace(/[\u0000-\u001f\u007f]/g, "_")
@@ -81,7 +85,7 @@ export class AttachmentService {
   ) {
     this.maxBytes =
       options.maxBytes ??
-      boundedInteger(process.env.PDF_MAX_BYTES, DEFAULT_PDF_MAX_BYTES);
+      configuredPdfMaxBytes();
     this.maxTextChars =
       options.maxTextChars ??
       boundedInteger(process.env.PDF_MAX_TEXT_CHARS, DEFAULT_PDF_MAX_TEXT_CHARS);

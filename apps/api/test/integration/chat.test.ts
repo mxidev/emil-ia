@@ -1,4 +1,5 @@
 import { afterEach, expect, it } from "vitest";
+import PDFDocument from "pdfkit";
 import type { AIRequest } from "@emil-ia/contracts";
 import type { AIProvider } from "../../src/provider.js";
 import { createIntegrationApp } from "./fixture.js";
@@ -52,6 +53,30 @@ function contextualProvider(requests: AIRequest[]): AIProvider {
   };
 }
 
+async function createPdf(text: string): Promise<Buffer> {
+  const document = new PDFDocument();
+  const chunks: Buffer[] = [];
+  const finished = new Promise<Buffer>((resolve) => {
+    document.on("data", (chunk: Buffer) => chunks.push(chunk));
+    document.on("end", () => resolve(Buffer.concat(chunks)));
+  });
+  document.text(text);
+  document.end();
+  return finished;
+}
+
+function multipartPdf(content: Buffer): { body: Buffer; contentType: string } {
+  const boundary = "----emil-ia-integration-boundary";
+  const prefix = Buffer.from(
+    `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="reference.pdf"\r\nContent-Type: application/pdf\r\n\r\n`,
+  );
+  const suffix = Buffer.from(`\r\n--${boundary}--\r\n`);
+  return {
+    body: Buffer.concat([prefix, content, suffix]),
+    contentType: `multipart/form-data; boundary=${boundary}`,
+  };
+}
+
 it("persists a sandbox-verified answer that can be retrieved through history", async () => {
   fixture = await createIntegrationApp(provider);
   const response = await fixture.app.inject({
@@ -81,6 +106,38 @@ it("persists a sandbox-verified answer that can be retrieved through history", a
     messages: 2,
     executions: 1,
   });
+});
+
+it("persists a PDF and reloads metadata without returning binary content", async () => {
+  fixture = await createIntegrationApp(provider);
+  const conversation = await fixture.app.inject({
+    method: "POST",
+    url: "/api/chat",
+    payload: { content: "Prepara una conversación para un PDF" },
+  });
+  const conversationId = conversation.headers["x-conversation-id"];
+  const upload = multipartPdf(await createPdf("El método de Euler aproxima soluciones."));
+
+  const uploaded = await fixture.app.inject({
+    method: "POST",
+    url: `/api/conversations/${conversationId}/attachments`,
+    headers: { "content-type": upload.contentType },
+    payload: upload.body,
+  });
+  expect(uploaded.statusCode).toBe(201);
+  expect(uploaded.json()).toMatchObject({
+    conversationId,
+    filename: "reference.pdf",
+    status: "ready",
+  });
+
+  const listed = await fixture.app.inject({
+    method: "GET",
+    url: `/api/conversations/${conversationId}/attachments`,
+  });
+  expect(listed.statusCode).toBe(200);
+  expect(listed.json()).toEqual([uploaded.json()]);
+  expect(listed.body).not.toContain("%PDF-");
 });
 
 it("keeps a warning in history when the real sandbox rejects the plan", async () => {

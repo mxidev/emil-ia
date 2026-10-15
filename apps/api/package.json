@@ -13,6 +13,7 @@
   "dependencies": {
     "@emil-ia/contracts": "*",
     "@fastify/cors": "^10.0.2",
+    "@fastify/multipart": "^10.1.4",
     "@fastify/sensible": "^6.0.3",
     "@types/pdfkit": "^0.17.6",
     "dotenv": "^18.0.6",

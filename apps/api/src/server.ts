@@ -1,11 +1,13 @@
 import dotenv from "dotenv";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import multipart from "@fastify/multipart";
 import sensible from "@fastify/sensible";
 import { createPostgresPool } from "./database/postgres.client.js";
 import { createProvider } from "./provider.js";
 import { ConversationRepository } from "./repositories/conversation.repository.js";
 import { registerAnalyticsRoutes } from "./routes/analytics.routes.js";
+import { registerAttachmentRoutes } from "./routes/attachment.routes.js";
 import { registerChatRoutes } from "./routes/chat.routes.js";
 import { registerConversationRoutes } from "./routes/conversation.routes.js";
 import { registerToolRoutes } from "./routes/tool.routes.js";
@@ -13,6 +15,11 @@ import { SandboxClient } from "./sandbox.js";
 import { ChatService } from "./services/chat.service.js";
 import { ExportService } from "./services/export.service.js";
 import { MathVerificationService } from "./services/math-verification.service.js";
+import {
+  AttachmentService,
+  configuredPdfMaxBytes,
+} from "./services/attachment.service.js";
+import { PdfParseTextExtractor } from "./services/pdf-text-extractor.js";
 
 dotenv.config({ path: "../../.env" });
 
@@ -21,6 +28,9 @@ await app.register(cors, {
   origin: process.env.CORS_ORIGIN ?? "http://localhost:4200",
 });
 await app.register(sensible);
+await app.register(multipart, {
+  limits: { files: 1, fileSize: configuredPdfMaxBytes() },
+});
 
 const provider = createProvider({
   info: (fields, message) => app.log.info(fields, message),
@@ -31,6 +41,10 @@ const sandbox = new SandboxClient();
 const mathVerification = new MathVerificationService(provider, sandbox, app.log);
 const chatService = new ChatService(repository, provider, mathVerification);
 const exportService = new ExportService(repository);
+const attachmentService = new AttachmentService(
+  repository,
+  new PdfParseTextExtractor(),
+);
 
 app.get("/health", async () => ({
   status: "ok",
@@ -39,6 +53,7 @@ app.get("/health", async () => ({
 }));
 registerAnalyticsRoutes(app, repository);
 registerConversationRoutes(app, repository, exportService);
+registerAttachmentRoutes(app, attachmentService);
 registerToolRoutes(app, sandbox);
 registerChatRoutes(app, chatService);
 
