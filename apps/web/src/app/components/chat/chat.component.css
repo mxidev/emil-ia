@@ -92,9 +92,8 @@ article {
 
 .role {
   display: block;
-  margin-bottom: 5px;
   color: var(--color-muted);
-  font-size: 11px;
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: 0.03em;
 }
@@ -103,7 +102,6 @@ article {
   min-width: 0;
   overflow-x: auto;
   overflow-wrap: anywhere;
-  white-space: pre-wrap;
   font-size: 15px;
 }
 
