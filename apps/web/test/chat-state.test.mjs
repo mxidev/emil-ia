@@ -15,6 +15,18 @@ function setup(overrides = {}) {
   const conversationApi = {
     list: async () => [],
     messages: async () => [],
+    attachments: async () => [],
+    uploadAttachment: async () => ({
+      id: "attachment-1",
+      conversationId: "conversation-1",
+      filename: "notes.pdf",
+      mimeType: "application/pdf",
+      byteSize: 16,
+      status: "ready",
+      extractionError: null,
+      createdAt: "2026-10-15T00:00:00.000Z",
+      updatedAt: "2026-10-15T00:00:00.000Z",
+    }),
     download: async () => {},
     feedback: async () => {},
     ...overrides.conversationApi,
@@ -128,4 +140,99 @@ test("a history loading failure publishes an error", async () => {
     notices.notifications().map(({ kind, message }) => ({ kind, message })),
     [{ kind: "error", message: "Sin conexión" }],
   );
+});
+
+test("successful PDF upload stores metadata and selects the attachment", async () => {
+  const uploaded = [];
+  const { state } = setup({
+    conversationApi: {
+      uploadAttachment: async (_id, file) => {
+        uploaded.push(file.name);
+        return {
+          id: "attachment-1",
+          conversationId: "conversation-1",
+          filename: file.name,
+          mimeType: "application/pdf",
+          byteSize: file.size,
+          status: "ready",
+          extractionError: null,
+          createdAt: "2026-10-15T00:00:00.000Z",
+          updatedAt: "2026-10-15T00:00:00.000Z",
+        };
+      },
+    },
+  });
+  state.conversationId.set("conversation-1");
+
+  await state.uploadAttachment(new File(["%PDF-1.7"], "notes.pdf"));
+
+  assert.deepEqual(uploaded, ["notes.pdf"]);
+  assert.deepEqual(state.attachments().map(({ id }) => id), ["attachment-1"]);
+  assert.deepEqual(state.selectedAttachmentIds(), ["attachment-1"]);
+});
+
+test("failed PDF upload publishes one error notice", async () => {
+  const { state, notices } = setup({
+    conversationApi: {
+      uploadAttachment: async () => {
+        throw new Error("PDF inválido");
+      },
+    },
+  });
+  state.conversationId.set("conversation-1");
+
+  await state.uploadAttachment(new File(["not pdf"], "notes.pdf"));
+
+  assert.deepEqual(
+    notices.notifications().map(({ kind, message }) => ({ kind, message })),
+    [{ kind: "error", message: "PDF inválido" }],
+  );
+});
+
+test("conversation reload restores PDF metadata and ready selections", async () => {
+  const attachment = {
+    id: "attachment-1",
+    conversationId: "conversation-1",
+    filename: "notes.pdf",
+    mimeType: "application/pdf",
+    byteSize: 16,
+    status: "ready",
+    extractionError: null,
+    createdAt: "2026-10-15T00:00:00.000Z",
+    updatedAt: "2026-10-15T00:00:00.000Z",
+  };
+  const { state } = setup({
+    conversationApi: {
+      messages: async () => [{ role: "user", content: "Hola" }],
+      attachments: async () => [attachment],
+    },
+  });
+
+  await state.selectConversation("conversation-1");
+
+  assert.deepEqual(state.attachments(), [attachment]);
+  assert.deepEqual(state.selectedAttachmentIds(), ["attachment-1"]);
+});
+
+test("send forwards selected PDF IDs to the chat API", async () => {
+  let sentRequest;
+  const { state } = setup({
+    chatApi: {
+      stream: async (request) => {
+        sentRequest = request;
+        return { conversationId: "conversation-1" };
+      },
+    },
+  });
+  state.conversationId.set("conversation-1");
+  state.selectedAttachmentIds.set(["attachment-1"]);
+  state.draft.set("Resume el PDF");
+
+  await state.send();
+
+  assert.deepEqual(sentRequest, {
+    content: "Resume el PDF",
+    conversationId: "conversation-1",
+    attachmentIds: ["attachment-1"],
+  });
 });

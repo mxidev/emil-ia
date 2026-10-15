@@ -4,6 +4,7 @@ import type {
   ExportFormat,
   FeedbackRating,
   Message,
+  Attachment,
 } from "../interfaces/conversation.interface";
 import { ChatApiService } from "./chat-api.service";
 import { ConversationApiService } from "./conversation-api.service";
@@ -18,6 +19,8 @@ export class ChatStateService {
   readonly loading = signal(false);
   readonly feedbackSent = signal(false);
   readonly error = signal<string | null>(null);
+  readonly attachments = signal<Attachment[]>([]);
+  readonly selectedAttachmentIds = signal<string[]>([]);
 
   constructor(
     private readonly chatApi: ChatApiService,
@@ -41,19 +44,71 @@ export class ChatStateService {
   startNewConversation(): void {
     this.conversationId.set(undefined);
     this.messages.set([]);
+    this.attachments.set([]);
+    this.selectedAttachmentIds.set([]);
     this.feedbackSent.set(false);
     this.error.set(null);
   }
 
   async selectConversation(id: string): Promise<void> {
     try {
-      this.messages.set(await this.conversationApi.messages(id));
+      const [messages, attachments] = await Promise.all([
+        this.conversationApi.messages(id),
+        this.conversationApi.attachments(id),
+      ]);
+      this.messages.set(messages);
+      this.attachments.set(attachments);
+      this.selectedAttachmentIds.set(
+        attachments
+          .filter((attachment) => attachment.status === "ready")
+          .slice(0, 5)
+          .map((attachment) => attachment.id),
+      );
       this.conversationId.set(id);
       this.feedbackSent.set(false);
       this.error.set(null);
     } catch (error) {
       this.setError(error);
     }
+  }
+
+  async uploadAttachment(file: File): Promise<void> {
+    const id = this.conversationId();
+    if (!id) {
+      this.setError(new Error("Crea o selecciona una conversación primero"));
+      return;
+    }
+
+    try {
+      const attachment = await this.conversationApi.uploadAttachment(id, file);
+      this.attachments.update((attachments) => [...attachments, attachment]);
+      if (
+        attachment.status === "ready" &&
+        this.selectedAttachmentIds().length < 5
+      ) {
+        this.selectedAttachmentIds.update((ids) => [...ids, attachment.id]);
+      }
+    } catch (error) {
+      this.setError(error);
+    }
+  }
+
+  removeAttachmentSelection(id: string): void {
+    this.selectedAttachmentIds.update((ids) => ids.filter((value) => value !== id));
+  }
+
+  toggleAttachmentSelection(id: string): void {
+    const attachment = this.attachments().find((item) => item.id === id);
+    if (!attachment || attachment.status !== "ready") return;
+    if (this.selectedAttachmentIds().includes(id)) {
+      this.removeAttachmentSelection(id);
+      return;
+    }
+    if (this.selectedAttachmentIds().length >= 5) {
+      this.setError(new Error("Puedes seleccionar hasta 5 PDFs por consulta"));
+      return;
+    }
+    this.selectedAttachmentIds.update((ids) => [...ids, id]);
   }
 
   async exportConversation(format: ExportFormat): Promise<void> {
@@ -100,7 +155,13 @@ export class ChatStateService {
 
     try {
       const result = await this.chatApi.stream(
-        { content, conversationId: this.conversationId() },
+        {
+          content,
+          conversationId: this.conversationId(),
+          ...(this.selectedAttachmentIds().length > 0
+            ? { attachmentIds: this.selectedAttachmentIds() }
+            : {}),
+        },
         {
           onToken: (delta) => this.appendAssistantToken(delta),
           onError: (message) => {

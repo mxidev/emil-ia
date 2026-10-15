@@ -32,4 +32,11 @@ export class ChatComponent {
       void this.state.send();
     }
   }
+
+  onFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = "";
+    if (file) void this.state.uploadAttachment(file);
+  }
 }

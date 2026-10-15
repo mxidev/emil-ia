@@ -3,6 +3,7 @@ import type { Message } from "./conversation.interface";
 export interface ChatRequest {
   content: string;
   conversationId?: string;
+  attachmentIds?: string[];
 }
 
 export interface ChatStreamHandlers {

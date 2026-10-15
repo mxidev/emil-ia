@@ -5,6 +5,7 @@ import type {
   ExportFormat,
   FeedbackRating,
   Message,
+  Attachment,
 } from "../interfaces/conversation.interface";
 
 @Injectable({ providedIn: "root" })
@@ -17,6 +18,26 @@ export class ConversationApiService {
     return this.getJson<Message[]>(
       `${API_BASE_URL}/conversations/${conversationId}/messages`,
     );
+  }
+
+  async attachments(conversationId: string): Promise<Attachment[]> {
+    return this.getJson<Attachment[]>(
+      `${API_BASE_URL}/conversations/${conversationId}/attachments`,
+    );
+  }
+
+  async uploadAttachment(
+    conversationId: string,
+    file: File,
+  ): Promise<Attachment> {
+    const form = new FormData();
+    form.append("file", file);
+    const response = await fetch(
+      `${API_BASE_URL}/conversations/${conversationId}/attachments`,
+      { method: "POST", body: form },
+    );
+    if (!response.ok) throw new Error(`La API respondió ${response.status}`);
+    return response.json() as Promise<Attachment>;
   }
 
   async feedback(

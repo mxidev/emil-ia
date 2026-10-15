@@ -64,6 +64,32 @@
 </section>
 
 <form class="composer" (submit)="$event.preventDefault(); state.send()">
+  <div class="attachment-panel">
+    <label class="attachment-button" for="pdf-upload">
+      Adjuntar PDF
+      <input
+        id="pdf-upload"
+        type="file"
+        accept="application/pdf,.pdf"
+        (change)="onFileSelected($event)"
+      />
+    </label>
+    <div class="attachment-list" *ngIf="state.attachments().length > 0">
+      <button
+        class="attachment-chip"
+        *ngFor="let attachment of state.attachments()"
+        type="button"
+        [class.selected]="state.selectedAttachmentIds().includes(attachment.id)"
+        [class.failed]="attachment.status === 'failed'"
+        [attr.aria-pressed]="state.selectedAttachmentIds().includes(attachment.id)"
+        [disabled]="attachment.status === 'failed'"
+        (click)="state.toggleAttachmentSelection(attachment.id)"
+      >
+        <span>{{ attachment.filename }}</span>
+        <small>{{ attachment.status === "ready" ? "Incluido" : "Sin texto" }}</small>
+      </button>
+    </div>
+  </div>
   <textarea
     aria-label="Escribe tu consulta"
     [value]="state.draft()"

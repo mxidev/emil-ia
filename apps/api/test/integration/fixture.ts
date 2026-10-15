@@ -76,16 +76,20 @@ export async function createIntegrationApp(provider: AIProvider) {
     await repository.initialize();
     const sandbox = new SandboxClient(sandboxUrl);
     const verifier = new MathVerificationService(provider, sandbox);
+    const attachmentService = new AttachmentService(
+      repository,
+      new PdfParseTextExtractor(),
+    );
     await app.register(sensible);
     await app.register(multipart, {
       limits: { files: 1, fileSize: configuredPdfMaxBytes() },
     });
-    registerChatRoutes(app, new ChatService(repository, provider, verifier));
-    registerConversationRoutes(app, repository, new ExportService(repository));
-    registerAttachmentRoutes(
+    registerChatRoutes(
       app,
-      new AttachmentService(repository, new PdfParseTextExtractor()),
+      new ChatService(repository, provider, verifier, attachmentService),
     );
+    registerConversationRoutes(app, repository, new ExportService(repository));
+    registerAttachmentRoutes(app, attachmentService);
     registerAnalyticsRoutes(app, repository);
     await app.ready();
     return { app, close };
