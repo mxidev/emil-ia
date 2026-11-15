@@ -6,6 +6,7 @@ import type { ProviderTokens } from "./auth.types.js";
 interface OidcConfig {
   issuer: string;
   clientId: string;
+  oidcScope?: string;
 }
 
 const OidcMetadataSchema = z.object({
@@ -81,7 +82,7 @@ export class OidcClient implements OidcProvider {
     url.search = new URLSearchParams({
       client_id: this.config.clientId,
       response_type: "code",
-      scope: "openid email",
+      scope: this.config.oidcScope ?? "openid",
       redirect_uri: input.redirectUri,
       state: input.state,
       nonce: input.nonce,

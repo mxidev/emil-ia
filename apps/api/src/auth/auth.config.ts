@@ -86,6 +86,10 @@ export function loadAuthConfig(env: NodeJS.ProcessEnv): AuthConfig {
   const logoutUri = parsedUrl(env, "AUTH_LOGOUT_URI");
   const allowedOrigin = parsedUrl(env, "AUTH_ALLOWED_ORIGIN");
   const cookieSecure = booleanValue(env, "AUTH_COOKIE_SECURE", nodeEnvironment === "production");
+  const oidcScope = env.AUTH_OIDC_SCOPE?.trim() || "openid";
+  if (!oidcScope.split(/\s+/).includes("openid")) {
+    throw new Error("AUTH_OIDC_SCOPE must include openid");
+  }
   validateProductionUrls(
     nodeEnvironment,
     issuerUrl,
@@ -98,6 +102,7 @@ export function loadAuthConfig(env: NodeJS.ProcessEnv): AuthConfig {
   return {
     issuer: issuerUrl.toString().replace(/\/$/, ""),
     clientId: required(env, "AUTH_CLIENT_ID"),
+    oidcScope,
     redirectUri: redirectUri.toString(),
     logoutUri: logoutUri.toString(),
     allowedOrigin: allowedOrigin.origin,

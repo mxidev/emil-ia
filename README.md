@@ -34,7 +34,10 @@ local de Floci no ofrece registro público ni recuperación de contraseña. Sus
 sesiones se mantienen en memoria, por lo que al reiniciar Floci puede ser
 necesario iniciar sesión otra vez. Consulta la [documentación Cognito de
 Floci](https://github.com/floci-io/floci/blob/main/docs/services/cognito.md) para
-los detalles del emulador local.
+los detalles del emulador local. El perfil generado solicita por defecto solo
+el scope `openid`, porque algunas versiones locales de Floci rechazan `email`
+en el endpoint de autorización; puedes ampliar `AUTH_OIDC_SCOPE` explícitamente
+cuando el proveedor lo soporte.
 
 ## Accesibilidad y uso móvil
 

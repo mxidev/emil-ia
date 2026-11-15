@@ -37,7 +37,7 @@ describe("OidcClient", () => {
     expect(parsed.origin + parsed.pathname).toBe("https://login.example/authorize");
     expect(parsed.searchParams.get("response_type")).toBe("code");
     expect(parsed.searchParams.get("client_id")).toBe(config.clientId);
-    expect(parsed.searchParams.get("scope")).toBe("openid email");
+    expect(parsed.searchParams.get("scope")).toBe("openid");
     expect(parsed.searchParams.get("code_challenge_method")).toBe("S256");
     expect(fetchImpl).toHaveBeenCalledOnce();
   });

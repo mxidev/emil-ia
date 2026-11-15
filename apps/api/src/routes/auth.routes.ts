@@ -71,7 +71,11 @@ export function registerAuthRoutes(
       clearCookie(reply, AUTH_STATE_COOKIE_NAME, "/api/auth/callback", options.config.cookieSecure);
       ensureCsrfCookie(request, reply, options.config);
       return reply.code(302).header("location", options.config.logoutUri).send();
-    } catch {
+    } catch (error) {
+      request.log.warn(
+        { error: error instanceof Error ? error.message : "unknown authentication error" },
+        "Authentication callback failed",
+      );
       return reply.code(400).send({ error: "Authentication callback failed" });
     }
   });

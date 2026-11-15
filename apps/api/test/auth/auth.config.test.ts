@@ -20,6 +20,7 @@ describe("loadAuthConfig", () => {
 
     expect(config.issuer).toBe("http://localhost:4566/pool-123");
     expect(config.clientId).toBe("client-123");
+    expect(config.oidcScope).toBe("openid");
     expect(config.sessionIdleTtlMs).toBe(7 * 24 * 60 * 60 * 1000);
     expect(config.sessionAbsoluteTtlMs).toBe(30 * 24 * 60 * 60 * 1000);
     expect(config.loginStateTtlMs).toBe(10 * 60 * 1000);
@@ -71,5 +72,12 @@ describe("loadAuthConfig", () => {
     env.AUTH_ALLOWED_ORIGIN = "*";
 
     expect(() => loadAuthConfig(env)).toThrow(/wildcard/);
+  });
+
+  it("requires the OIDC scope to include openid", () => {
+    const env = validEnv();
+    env.AUTH_OIDC_SCOPE = "email";
+
+    expect(() => loadAuthConfig(env)).toThrow(/include openid/);
   });
 });

@@ -91,7 +91,7 @@ $clientArguments = @(
   "--explicit-auth-flows", "ALLOW_USER_PASSWORD_AUTH", "ALLOW_REFRESH_TOKEN_AUTH",
   "--allowed-o-auth-flows-user-pool-client",
   "--allowed-o-auth-flows", "code",
-  "--allowed-o-auth-scopes", "openid", "email",
+  "--allowed-o-auth-scopes", "openid",
   "--callback-urls", $CallbackUrl,
   "--logout-urls", $LogoutUrl,
   "--supported-identity-providers", "COGNITO"
@@ -130,6 +130,7 @@ $sessionSecret = if ($existingSecret) { $existingSecret } else { New-SessionSecr
 $issuer = "$EndpointUrl/$poolId"
 Set-EnvValue "AUTH_ISSUER" $issuer
 Set-EnvValue "AUTH_CLIENT_ID" $clientId
+Set-EnvValue "AUTH_OIDC_SCOPE" "openid"
 Set-EnvValue "AUTH_REDIRECT_URI" $CallbackUrl
 Set-EnvValue "AUTH_LOGOUT_URI" $LogoutUrl
 Set-EnvValue "AUTH_SESSION_SECRET" $sessionSecret
