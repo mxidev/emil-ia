@@ -1,4 +1,20 @@
 export const DATABASE_QUERIES = {
+  upsertAuthUser:
+    'INSERT INTO users (id, display_name, auth_issuer, auth_subject) VALUES ($1, $2, $3, $4) ON CONFLICT (auth_issuer, auth_subject) DO UPDATE SET display_name = EXCLUDED.display_name RETURNING id, display_name AS "displayName", auth_issuer AS "authIssuer", auth_subject AS "authSubject"',
+  createLoginTransaction:
+    "INSERT INTO auth_login_transactions (state_hash, nonce, code_verifier_ciphertext, code_verifier_iv, code_verifier_auth_tag, redirect_uri, expires_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+  consumeLoginTransaction:
+    'UPDATE auth_login_transactions SET consumed_at = now() WHERE state_hash = $1 AND consumed_at IS NULL AND expires_at > now() RETURNING state_hash AS "stateHash", nonce, code_verifier_ciphertext AS "codeVerifierCiphertext", code_verifier_iv AS "codeVerifierIv", code_verifier_auth_tag AS "codeVerifierAuthTag", redirect_uri AS "redirectUri", expires_at AS "expiresAt"',
+  createSession:
+    "INSERT INTO auth_sessions (session_hash, user_id, access_token_ciphertext, access_token_iv, access_token_auth_tag, refresh_token_ciphertext, refresh_token_iv, refresh_token_auth_tag, access_token_expires_at, created_at, last_seen_at, expires_at, absolute_expires_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)",
+  findSession:
+    'SELECT session_hash AS "sessionHash", user_id AS "userId", access_token_ciphertext AS "accessTokenCiphertext", access_token_iv AS "accessTokenIv", access_token_auth_tag AS "accessTokenAuthTag", refresh_token_ciphertext AS "refreshTokenCiphertext", refresh_token_iv AS "refreshTokenIv", refresh_token_auth_tag AS "refreshTokenAuthTag", access_token_expires_at AS "accessTokenExpiresAt", created_at AS "createdAt", last_seen_at AS "lastSeenAt", expires_at AS "expiresAt", absolute_expires_at AS "absoluteExpiresAt", revoked_at AS "revokedAt" FROM auth_sessions WHERE session_hash = $1 AND revoked_at IS NULL AND expires_at > now() AND absolute_expires_at > now()',
+  touchSession:
+    "UPDATE auth_sessions SET access_token_ciphertext = $2, access_token_iv = $3, access_token_auth_tag = $4, refresh_token_ciphertext = $5, refresh_token_iv = $6, refresh_token_auth_tag = $7, access_token_expires_at = $8, last_seen_at = $9, expires_at = $10 WHERE session_hash = $1 AND revoked_at IS NULL AND absolute_expires_at > now()",
+  revokeSession:
+    "UPDATE auth_sessions SET revoked_at = now() WHERE session_hash = $1 AND revoked_at IS NULL",
+  revokeAllUserSessions:
+    "UPDATE auth_sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL",
   createLocalUser:
     "INSERT INTO users (id, display_name) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING",
   createConversation:

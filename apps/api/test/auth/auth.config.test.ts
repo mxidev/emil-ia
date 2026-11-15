@@ -1,0 +1,42 @@
+import { describe, expect, it } from "vitest";
+import { loadAuthConfig } from "../../src/auth/auth.config.js";
+
+const sessionSecret = Buffer.alloc(32, 7).toString("base64");
+
+function validEnv(): NodeJS.ProcessEnv {
+  return {
+    AUTH_ISSUER: "http://localhost:4566/pool-123",
+    AUTH_CLIENT_ID: "client-123",
+    AUTH_REDIRECT_URI: "http://localhost:3000/api/auth/callback",
+    AUTH_LOGOUT_URI: "http://localhost:4200/",
+    AUTH_SESSION_SECRET: sessionSecret,
+    AUTH_ALLOWED_ORIGIN: "http://localhost:4200",
+  };
+}
+
+describe("loadAuthConfig", () => {
+  it("loads the approved local auth defaults", () => {
+    const config = loadAuthConfig(validEnv());
+
+    expect(config.issuer).toBe("http://localhost:4566/pool-123");
+    expect(config.clientId).toBe("client-123");
+    expect(config.sessionIdleTtlMs).toBe(7 * 24 * 60 * 60 * 1000);
+    expect(config.sessionAbsoluteTtlMs).toBe(30 * 24 * 60 * 60 * 1000);
+    expect(config.loginStateTtlMs).toBe(10 * 60 * 1000);
+    expect(config.cookieSecure).toBe(false);
+  });
+
+  it("rejects missing required values", () => {
+    const env = validEnv();
+    delete env.AUTH_SESSION_SECRET;
+
+    expect(() => loadAuthConfig(env)).toThrow(/AUTH_SESSION_SECRET/);
+  });
+
+  it("rejects a session secret shorter than 32 bytes", () => {
+    const env = validEnv();
+    env.AUTH_SESSION_SECRET = Buffer.alloc(16, 1).toString("base64");
+
+    expect(() => loadAuthConfig(env)).toThrow(/32 bytes/);
+  });
+});
