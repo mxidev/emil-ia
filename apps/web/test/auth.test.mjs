@@ -59,6 +59,30 @@ test("clears local auth state after logout", async () => {
   assert.equal(calls[0].method, "POST");
 });
 
+test("navigates through the provider logout URL after local logout", async () => {
+  const originalLocation = globalThis.location;
+  let destination;
+  globalThis.location = { assign: (url) => { destination = url; } };
+  const client = {
+    request: async () => new Response(JSON.stringify({
+      logoutUrl: "http://localhost:4566/cognito-idp/logout?client_id=client-123",
+    }), { status: 200, headers: { "content-type": "application/json" } }),
+  };
+
+  try {
+    const auth = new AuthService(client);
+    await auth.logout();
+
+    assert.equal(
+      destination,
+      "http://localhost:4566/cognito-idp/logout?client_id=client-123",
+    );
+    assert.equal(auth.status(), "unauthenticated");
+  } finally {
+    globalThis.location = originalLocation;
+  }
+});
+
 test("returns to unauthenticated state when a later API request expires the session", async () => {
   let unauthorizedHandler;
   const client = {

@@ -50,11 +50,25 @@ export class AuthService {
   }
 
   async logout(): Promise<void> {
+    let logoutUrl: string | null = null;
     try {
-      await this.client.request(`${API_BASE_URL}/auth/logout`, { method: "POST" });
+      const response = await this.client.request(`${API_BASE_URL}/auth/logout`, {
+        method: "POST",
+      });
+      if (response.ok && response.status !== 204) {
+        try {
+          const body = (await response.json()) as { logoutUrl?: unknown };
+          if (typeof body.logoutUrl === "string" && body.logoutUrl) {
+            logoutUrl = body.logoutUrl;
+          }
+        } catch {
+          // Local logout remains complete even when the response body is unusable.
+        }
+      }
     } finally {
       this.setUnauthenticated();
     }
+    if (logoutUrl) globalThis.location.assign(logoutUrl);
   }
 
   private setUnauthenticated(): void {
