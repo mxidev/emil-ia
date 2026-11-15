@@ -12,6 +12,22 @@ MVP de un asistente académico para matemáticas e ingeniería. La primera versi
 
 Sin una clave de proveedor, la API usa el proveedor mock y permite validar todo el flujo localmente.
 
+## Accesibilidad y uso móvil
+
+El frontend incluye un enlace `Saltar al contenido`, landmarks y headings
+identificables, navegación por teclado con foco visible y estados de actividad
+compatibles con lectores de pantalla. Mientras se genera una respuesta, el chat
+expone un único estado accesible y no anuncia cada token del streaming.
+
+El composer se adapta a pantallas estrechas: desde 320 px reorganiza el campo
+de consulta y sus acciones para mantener disponibles `Adjuntar`, `Detener` y
+`Enviar`. También conserva el zoom del navegador, respeta las áreas seguras de
+dispositivos con notch y contiene el scroll interno.
+
+El typecheck, los tests y el build validan la estructura implementada; además,
+la revisión final debe hacerse en un teléfono real con teclado virtual y lector
+de pantalla. Estas mejoras no constituyen una certificación WCAG completa.
+
 ## Estado de una respuesta
 
 Mientras Emil-IA prepara una respuesta, el chat muestra mensajes de actividad
