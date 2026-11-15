@@ -130,6 +130,7 @@ $sessionSecret = if ($existingSecret) { $existingSecret } else { New-SessionSecr
 $issuer = "$EndpointUrl/$poolId"
 Set-EnvValue "AUTH_ISSUER" $issuer
 Set-EnvValue "AUTH_CLIENT_ID" $clientId
+Set-EnvValue "AUTH_PROVIDER_LOGOUT_URI" "$EndpointUrl/cognito-idp/logout"
 Set-EnvValue "AUTH_OIDC_SCOPE" "openid"
 Set-EnvValue "AUTH_REDIRECT_URI" $CallbackUrl
 Set-EnvValue "AUTH_LOGOUT_URI" $LogoutUrl
@@ -145,6 +146,7 @@ Write-Host ""
 Write-Host "Configuración local lista en .env (ignorado por git)." -ForegroundColor Green
 Write-Host "AUTH_ISSUER=$issuer"
 Write-Host "AUTH_CLIENT_ID=$clientId"
+Write-Host "AUTH_PROVIDER_LOGOUT_URI=$EndpointUrl/cognito-idp/logout"
 Write-Host "AUTH_REDIRECT_URI=$CallbackUrl"
 Write-Host "AUTH_LOGOUT_URI=$LogoutUrl"
 Write-Host "AUTH_SESSION_SECRET quedó escrito en .env; no se imprime." -ForegroundColor Yellow

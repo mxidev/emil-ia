@@ -96,9 +96,11 @@ export function registerAuthRoutes(
     { preHandler: app.requireCsrf },
     async (request, reply) => {
       const sessionCookie = getRequestCookie(request, options.config.cookieName);
-      if (sessionCookie) await options.service.logout(sessionCookie);
+      const logoutUrl = sessionCookie
+        ? await options.service.logout(sessionCookie)
+        : null;
       clearCookie(reply, options.config.cookieName, "/", options.config.cookieSecure);
-      return reply.code(204).send();
+      return reply.code(200).send({ logoutUrl });
     },
   );
 }

@@ -138,7 +138,7 @@ export class AuthService {
     return user;
   }
 
-  async logout(sessionCookie: string): Promise<void> {
+  async logout(sessionCookie: string): Promise<string | null> {
     const sessionHash = hashToken(sessionCookie);
     const session = await this.repository.findSession(sessionHash);
     try {
@@ -148,6 +148,15 @@ export class AuthService {
     } finally {
       await this.repository.revokeSession(sessionHash);
     }
+    return this.buildProviderLogoutUrl();
+  }
+
+  private buildProviderLogoutUrl(): string | null {
+    if (!this.config.providerLogoutUri) return null;
+    const logoutUrl = new URL(this.config.providerLogoutUri);
+    logoutUrl.searchParams.set("client_id", this.config.clientId);
+    logoutUrl.searchParams.set("logout_uri", this.config.logoutUri);
+    return logoutUrl.toString();
   }
 
   private refreshSession(

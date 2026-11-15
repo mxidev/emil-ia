@@ -7,6 +7,7 @@ function validEnv(): NodeJS.ProcessEnv {
   return {
     AUTH_ISSUER: "http://localhost:4566/pool-123",
     AUTH_CLIENT_ID: "client-123",
+    AUTH_PROVIDER_LOGOUT_URI: "http://localhost:4566/cognito-idp/logout",
     AUTH_REDIRECT_URI: "http://localhost:3000/api/auth/callback",
     AUTH_LOGOUT_URI: "http://localhost:4200/",
     AUTH_SESSION_SECRET: sessionSecret,
@@ -20,6 +21,9 @@ describe("loadAuthConfig", () => {
 
     expect(config.issuer).toBe("http://localhost:4566/pool-123");
     expect(config.clientId).toBe("client-123");
+    expect(config.providerLogoutUri).toBe(
+      "http://localhost:4566/cognito-idp/logout",
+    );
     expect(config.oidcScope).toBe("openid");
     expect(config.sessionIdleTtlMs).toBe(7 * 24 * 60 * 60 * 1000);
     expect(config.sessionAbsoluteTtlMs).toBe(30 * 24 * 60 * 60 * 1000);
@@ -79,5 +83,12 @@ describe("loadAuthConfig", () => {
     env.AUTH_OIDC_SCOPE = "email";
 
     expect(() => loadAuthConfig(env)).toThrow(/include openid/);
+  });
+
+  it("allows local logout to omit a provider endpoint", () => {
+    const env = validEnv();
+    delete env.AUTH_PROVIDER_LOGOUT_URI;
+
+    expect(loadAuthConfig(env).providerLogoutUri).toBeUndefined();
   });
 });

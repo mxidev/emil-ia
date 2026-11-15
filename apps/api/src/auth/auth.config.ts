@@ -48,6 +48,7 @@ function validateProductionUrls(
   redirectUri: URL,
   logoutUri: URL,
   allowedOrigin: URL,
+  providerLogoutUri: URL | undefined,
   cookieSecure: boolean,
 ): void {
   if (allowedOrigin.pathname !== "/" || allowedOrigin.search || allowedOrigin.hash) {
@@ -55,12 +56,14 @@ function validateProductionUrls(
   }
   if (nodeEnvironment !== "production") return;
   if (!cookieSecure) throw new Error("AUTH_COOKIE_SECURE must be true in production");
-  for (const [name, value] of [
+  const urls: Array<[string, URL]> = [
     ["AUTH_ISSUER", issuer],
     ["AUTH_REDIRECT_URI", redirectUri],
     ["AUTH_LOGOUT_URI", logoutUri],
     ["AUTH_ALLOWED_ORIGIN", allowedOrigin],
-  ] as const) {
+  ];
+  if (providerLogoutUri) urls.push(["AUTH_PROVIDER_LOGOUT_URI", providerLogoutUri]);
+  for (const [name, value] of urls) {
     if (value.protocol !== "https:") {
       throw new Error(`${name} must use https in production`);
     }
@@ -84,6 +87,9 @@ export function loadAuthConfig(env: NodeJS.ProcessEnv): AuthConfig {
   const issuerUrl = parsedUrl(env, "AUTH_ISSUER");
   const redirectUri = parsedUrl(env, "AUTH_REDIRECT_URI");
   const logoutUri = parsedUrl(env, "AUTH_LOGOUT_URI");
+  const providerLogoutUri = env.AUTH_PROVIDER_LOGOUT_URI?.trim()
+    ? parsedUrl(env, "AUTH_PROVIDER_LOGOUT_URI")
+    : undefined;
   const allowedOrigin = parsedUrl(env, "AUTH_ALLOWED_ORIGIN");
   const cookieSecure = booleanValue(env, "AUTH_COOKIE_SECURE", nodeEnvironment === "production");
   const oidcScope = env.AUTH_OIDC_SCOPE?.trim() || "openid";
@@ -96,12 +102,14 @@ export function loadAuthConfig(env: NodeJS.ProcessEnv): AuthConfig {
     redirectUri,
     logoutUri,
     allowedOrigin,
+    providerLogoutUri,
     cookieSecure,
   );
 
   return {
     issuer: issuerUrl.toString().replace(/\/$/, ""),
     clientId: required(env, "AUTH_CLIENT_ID"),
+    providerLogoutUri: providerLogoutUri?.toString(),
     oidcScope,
     redirectUri: redirectUri.toString(),
     logoutUri: logoutUri.toString(),

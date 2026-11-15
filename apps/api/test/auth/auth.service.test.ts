@@ -9,6 +9,7 @@ const config: AuthConfig = {
   redirectUri: "http://localhost:3000/api/auth/callback",
   logoutUri: "http://localhost:4200/",
   allowedOrigin: "http://localhost:4200",
+  providerLogoutUri: "http://localhost:4566/cognito-idp/logout",
   sessionSecret: Buffer.alloc(32, 8),
   cookieName: "emilia_session",
   cookieSecure: false,
@@ -255,5 +256,30 @@ describe("AuthService", () => {
     await service.logout("session-token");
 
     expect(repo.revokeSession).toHaveBeenCalledWith(hashToken("session-token"));
+  });
+
+  it("returns a provider logout URL without exposing provider tokens", async () => {
+    const repo = repository();
+    repo.findSession.mockResolvedValue({ providerTokens } as AuthSession);
+    const service = new AuthService(config, repo, provider(), { verify: vi.fn() }, () => now);
+
+    await expect(service.logout("session-token")).resolves.toBe(
+      "http://localhost:4566/cognito-idp/logout?client_id=client-123&logout_uri=http%3A%2F%2Flocalhost%3A4200%2F",
+    );
+    expect(repo.revokeSession).toHaveBeenCalledWith(hashToken("session-token"));
+  });
+
+  it("returns no provider URL when federated logout is not configured", async () => {
+    const repo = repository();
+    repo.findSession.mockResolvedValue(null);
+    const service = new AuthService(
+      { ...config, providerLogoutUri: undefined },
+      repo,
+      provider(),
+      { verify: vi.fn() },
+      () => now,
+    );
+
+    await expect(service.logout("session-token")).resolves.toBeNull();
   });
 });

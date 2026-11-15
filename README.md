@@ -1,5 +1,9 @@
 # Emil-IA
 
+El cierre de sesion tambien cubre la sesion administrada por Floci: Emil-IA
+revoca primero su sesion local y luego redirige al endpoint de logout del
+proveedor para que el siguiente login no reutilice automaticamente la cuenta.
+
 MVP de un asistente académico para matemáticas e ingeniería. La primera versión es local y contiene un frontend Angular, una API Node/TypeScript, PostgreSQL y un sandbox Python aislado.
 
 ## Inicio rápido

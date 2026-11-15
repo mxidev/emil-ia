@@ -7,6 +7,7 @@ import type { AuthConfig, AuthenticatedUser } from "../../src/auth/auth.types.js
 const config: AuthConfig = {
   issuer: "http://localhost:4566/pool-123",
   clientId: "client-123",
+  providerLogoutUri: "http://localhost:4566/cognito-idp/logout",
   redirectUri: "http://localhost:3000/api/auth/callback",
   logoutUri: "http://localhost:4200/",
   allowedOrigin: "http://localhost:4200",
@@ -33,7 +34,7 @@ function service() {
     })),
     completeLogin: vi.fn(async () => ({ sessionCookie: "session-token", user })),
     getSession: vi.fn(async () => user),
-    logout: vi.fn(async () => undefined),
+    logout: vi.fn(async () => "http://localhost:4566/cognito-idp/logout?client_id=client-123&logout_uri=http%3A%2F%2Flocalhost%3A4200%2F"),
   };
 }
 
@@ -115,6 +116,35 @@ describe("auth routes", () => {
     expect(response.headers["set-cookie"]).toEqual(
       expect.arrayContaining([expect.stringContaining("emilia_csrf=")]),
     );
+    await app.close();
+  });
+
+  it("returns the provider logout URL after clearing the local session", async () => {
+    const auth = service();
+    const app = Fastify();
+    registerAuthPlugin(app, { config, service: auth });
+    registerAuthRoutes(app, { config, service: auth });
+    await app.ready();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/logout",
+      headers: {
+        cookie: "emilia_session=session-token; emilia_csrf=csrf-token",
+        origin: config.allowedOrigin,
+        "x-csrf-token": "csrf-token",
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      logoutUrl:
+        "http://localhost:4566/cognito-idp/logout?client_id=client-123&logout_uri=http%3A%2F%2Flocalhost%3A4200%2F",
+    });
+    expect(response.headers["set-cookie"]).toEqual(
+      expect.arrayContaining([expect.stringContaining("emilia_session=;" )]),
+    );
+    expect(auth.logout).toHaveBeenCalledWith("session-token");
     await app.close();
   });
 });

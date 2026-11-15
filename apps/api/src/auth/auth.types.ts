@@ -1,6 +1,7 @@
 export interface AuthConfig {
   issuer: string;
   clientId: string;
+  providerLogoutUri?: string;
   oidcScope?: string;
   redirectUri: string;
   logoutUri: string;
