@@ -12,7 +12,7 @@ import type {
 
 @Injectable({ providedIn: "root" })
 export class ConversationApiService {
-  constructor(private readonly client = new ApiClientService()) {}
+  constructor(private readonly client: ApiClientService = new ApiClientService()) {}
 
   async list(): Promise<Conversation[]> {
     return this.getJson<Conversation[]>(`${API_BASE_URL}/conversations`);

@@ -10,7 +10,7 @@ import type {
 
 @Injectable({ providedIn: "root" })
 export class ChatApiService {
-  constructor(private readonly client = new ApiClientService()) {}
+  constructor(private readonly client: ApiClientService = new ApiClientService()) {}
 
   async stream(
     request: ChatRequest,
