@@ -1,5 +1,6 @@
 import { Injectable } from "@angular/core";
 import { API_BASE_URL } from "../constants/api.constants";
+import { readApiError } from "./api-error";
 import type {
   Conversation,
   ExportFormat,
@@ -36,7 +37,7 @@ export class ConversationApiService {
       `${API_BASE_URL}/conversations/${conversationId}/attachments`,
       { method: "POST", body: form },
     );
-    if (!response.ok) throw new Error(`La API respondió ${response.status}`);
+    if (!response.ok) throw new Error(await readApiError(response));
     return response.json() as Promise<Attachment>;
   }
 
@@ -48,7 +49,7 @@ export class ConversationApiService {
       `${API_BASE_URL}/conversations/${conversationId}/attachments/${attachmentId}`,
       { method: "DELETE" },
     );
-    if (!response.ok) throw new Error(`La API respondió ${response.status}`);
+    if (!response.ok) throw new Error(await readApiError(response));
   }
 
   async feedback(
@@ -64,7 +65,7 @@ export class ConversationApiService {
         body: JSON.stringify({ rating, category }),
       },
     );
-    if (!response.ok) throw new Error("No se pudo guardar el feedback");
+    if (!response.ok) throw new Error(await readApiError(response));
   }
 
   async download(conversationId: string, format: ExportFormat): Promise<void> {
@@ -72,7 +73,7 @@ export class ConversationApiService {
       `${API_BASE_URL}/conversations/${conversationId}/export.${format}`,
     );
     
-    if (!response.ok) throw new Error("No se pudo exportar la conversación");
+    if (!response.ok) throw new Error(await readApiError(response));
     const url = URL.createObjectURL(await response.blob());
     const link = document.createElement("a");
     
@@ -85,7 +86,7 @@ export class ConversationApiService {
   private async getJson<T>(url: string): Promise<T> {
     const response = await fetch(url);
     
-    if (!response.ok) throw new Error(`La API respondió ${response.status}`);
+    if (!response.ok) throw new Error(await readApiError(response));
     return response.json() as Promise<T>;
   }
 }

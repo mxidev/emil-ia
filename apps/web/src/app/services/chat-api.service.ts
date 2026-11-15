@@ -1,5 +1,6 @@
 import { Injectable } from "@angular/core";
 import { API_BASE_URL } from "../constants/api.constants";
+import { readApiError } from "./api-error";
 import type {
   ChatRequest,
   ChatResult,
@@ -11,14 +12,19 @@ export class ChatApiService {
   async stream(
     request: ChatRequest,
     handlers: ChatStreamHandlers,
+    signal?: AbortSignal,
   ): Promise<ChatResult> {
     const response = await fetch(`${API_BASE_URL}/chat`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(request),
+      signal,
     });
-    if (!response.ok || !response.body) {
-      throw new Error(`La API respondió ${response.status}`);
+    if (!response.ok) {
+      throw new Error(await readApiError(response));
+    }
+    if (!response.body) {
+      throw new Error("La API no devolvió un cuerpo de streaming");
     }
 
     const conversationId =

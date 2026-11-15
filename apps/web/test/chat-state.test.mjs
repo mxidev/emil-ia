@@ -278,3 +278,73 @@ test("deletes a PDF from the conversation and current selection", async () => {
   assert.deepEqual(state.attachments(), []);
   assert.deepEqual(state.selectedAttachmentIds(), []);
 });
+
+test("cancelling a partial response preserves tokens without an error notice", async () => {
+  let receivedSignal;
+  let releaseStream;
+  const { state, notices } = setup({
+    chatApi: {
+      stream: async (_request, handlers, signal) => {
+        receivedSignal = signal;
+        handlers.onToken("Parcial");
+        await new Promise((resolve) => {
+          releaseStream = resolve;
+          signal.addEventListener("abort", resolve, { once: true });
+        });
+        return {};
+      },
+    },
+  });
+  state.draft.set("Calcula esto");
+
+  const sending = state.send();
+  while (!receivedSignal) await new Promise((resolve) => setTimeout(resolve, 0));
+
+  state.cancel();
+  releaseStream();
+  await sending;
+
+  assert.equal(receivedSignal.aborted, true);
+  assert.equal(state.messages()[1].content, "Parcial");
+  assert.equal(state.responseStatus(), "Respuesta detenida");
+  assert.equal(state.loading(), false);
+  assert.deepEqual(notices.notifications(), []);
+});
+
+test("a new send after cancellation uses a fresh active signal", async () => {
+  const signals = [];
+  let releaseFirst;
+  let calls = 0;
+  const { state } = setup({
+    chatApi: {
+      stream: async (_request, handlers, signal) => {
+        signals.push(signal);
+        calls += 1;
+        if (calls === 1) {
+          await new Promise((resolve) => {
+            releaseFirst = resolve;
+            signal.addEventListener("abort", resolve, { once: true });
+          });
+          return {};
+        }
+        handlers.onToken("Nueva");
+        return {};
+      },
+    },
+  });
+  state.draft.set("Primera");
+  const firstSend = state.send();
+  while (signals.length < 1) await new Promise((resolve) => setTimeout(resolve, 0));
+  state.cancel();
+  releaseFirst();
+  await firstSend;
+
+  state.draft.set("Segunda");
+  await state.send();
+
+  assert.equal(signals.length, 2);
+  assert.notEqual(signals[0], signals[1]);
+  assert.equal(signals[0].aborted, true);
+  assert.equal(signals[1].aborted, false);
+  assert.equal(state.messages().at(-1).content, "Nueva");
+});

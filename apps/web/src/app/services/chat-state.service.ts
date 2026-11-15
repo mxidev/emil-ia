@@ -19,8 +19,10 @@ export class ChatStateService {
   readonly loading = signal(false);
   readonly feedbackSent = signal(false);
   readonly error = signal<string | null>(null);
+  readonly responseStatus = signal<string | null>(null);
   readonly attachments = signal<Attachment[]>([]);
   readonly selectedAttachmentIds = signal<string[]>([]);
+  private activeController: AbortController | undefined;
 
   constructor(
     private readonly chatApi: ChatApiService,
@@ -42,15 +44,19 @@ export class ChatStateService {
   }
 
   startNewConversation(): void {
+    this.cancel();
     this.conversationId.set(undefined);
     this.messages.set([]);
     this.attachments.set([]);
     this.selectedAttachmentIds.set([]);
     this.feedbackSent.set(false);
     this.error.set(null);
+    this.responseStatus.set(null);
   }
 
   async selectConversation(id: string): Promise<void> {
+    this.cancel();
+    this.responseStatus.set(null);
     try {
       const [messages, attachments] = await Promise.all([
         this.conversationApi.messages(id),
@@ -165,6 +171,9 @@ export class ChatStateService {
     this.draft.set("");
     this.loading.set(true);
     this.error.set(null);
+    this.responseStatus.set(null);
+    const controller = new AbortController();
+    this.activeController = controller;
     let streamErrorReported = false;
 
     try {
@@ -185,20 +194,32 @@ export class ChatStateService {
             this.appendAssistantToken(`No se pudo completar la consulta: ${message}`);
           },
         },
+        controller.signal,
       );
      
-      if (result.conversationId) this.conversationId.set(result.conversationId);
-      await this.loadConversations();
+      if (!controller.signal.aborted) {
+        if (result.conversationId) this.conversationId.set(result.conversationId);
+        await this.loadConversations();
+      }
     } catch (error) {
-      if (!streamErrorReported) {
+      if (controller.signal.aborted) {
+        this.responseStatus.set("Respuesta detenida");
+      } else if (!streamErrorReported) {
         this.setError(error);
         this.appendAssistantToken(
           `No se pudo completar la consulta: ${this.error() ?? "error desconocido"}`,
         );
       }
     } finally {
+      if (this.activeController === controller) this.activeController = undefined;
       this.loading.set(false);
     }
+  }
+
+  cancel(): void {
+    if (!this.activeController) return;
+    this.activeController.abort();
+    this.responseStatus.set("Respuesta detenida");
   }
 
   private appendAssistantToken(delta: string): void {
