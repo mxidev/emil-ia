@@ -186,8 +186,12 @@ export class ChatStateService {
             : {}),
         },
         {
-          onToken: (delta) => this.appendAssistantToken(delta),
+          onToken: (delta) => {
+            if (controller.signal.aborted) return;
+            this.appendAssistantToken(delta);
+          },
           onError: (message) => {
+            if (controller.signal.aborted) return;
             if (streamErrorReported) return;
             streamErrorReported = true;
             this.setError(new Error(message));
@@ -203,7 +207,9 @@ export class ChatStateService {
       }
     } catch (error) {
       if (controller.signal.aborted) {
-        this.responseStatus.set("Respuesta detenida");
+        if (this.activeController === controller) {
+          this.responseStatus.set("Respuesta detenida");
+        }
       } else if (!streamErrorReported) {
         this.setError(error);
         this.appendAssistantToken(
@@ -211,15 +217,20 @@ export class ChatStateService {
         );
       }
     } finally {
-      if (this.activeController === controller) this.activeController = undefined;
-      this.loading.set(false);
+      if (this.activeController === controller) {
+        this.activeController = undefined;
+        this.loading.set(false);
+      }
     }
   }
 
   cancel(): void {
-    if (!this.activeController) return;
-    this.activeController.abort();
+    const controller = this.activeController;
+    if (!controller) return;
+    controller.abort();
     this.responseStatus.set("Respuesta detenida");
+    this.activeController = undefined;
+    this.loading.set(false);
   }
 
   private appendAssistantToken(delta: string): void {

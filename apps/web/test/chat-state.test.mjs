@@ -348,3 +348,70 @@ test("a new send after cancellation uses a fresh active signal", async () => {
   assert.equal(signals[1].aborted, false);
   assert.equal(state.messages().at(-1).content, "Nueva");
 });
+
+test("cancellation immediately ends loading and ignores late stream events", async () => {
+  let streamHandlers;
+  let releaseStream;
+  const { state, notices } = setup({
+    chatApi: {
+      stream: async (_request, handlers, signal) => {
+        streamHandlers = handlers;
+        await new Promise((resolve) => {
+          releaseStream = resolve;
+          signal.addEventListener("abort", resolve, { once: true });
+        });
+        return {};
+      },
+    },
+  });
+  state.draft.set("Calcula esto");
+  const sending = state.send();
+  while (!streamHandlers) await new Promise((resolve) => setTimeout(resolve, 0));
+
+  streamHandlers.onToken("Parcial");
+  state.cancel();
+  streamHandlers.onToken("Tarde");
+  streamHandlers.onError("Error tardío");
+
+  assert.equal(state.loading(), false);
+  assert.equal(state.messages()[1].content, "Parcial");
+  assert.deepEqual(notices.notifications(), []);
+
+  releaseStream();
+  await sending;
+});
+
+test("a resend can start immediately after cancellation", async () => {
+  const signals = [];
+  let calls = 0;
+  const { state } = setup({
+    chatApi: {
+      stream: async (_request, handlers, signal) => {
+        signals.push(signal);
+        calls += 1;
+        if (calls === 1) {
+          await new Promise((resolve) =>
+            signal.addEventListener("abort", resolve, { once: true }),
+          );
+          return {};
+        }
+        handlers.onToken("Nueva");
+        return {};
+      },
+    },
+  });
+
+  state.draft.set("Primera");
+  const firstSend = state.send();
+  while (signals.length < 1) await new Promise((resolve) => setTimeout(resolve, 0));
+  state.cancel();
+
+  state.draft.set("Segunda");
+  await state.send();
+  await firstSend;
+
+  assert.equal(signals.length, 2);
+  assert.equal(signals[0].aborted, true);
+  assert.equal(signals[1].aborted, false);
+  assert.equal(state.messages().at(-1).content, "Nueva");
+});
