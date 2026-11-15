@@ -14,6 +14,7 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 30px clamp(20px, 5vw, 72px) 20px;
 }
 
@@ -100,6 +101,7 @@ article {
 .content {
   min-width: 0;
   overflow-x: auto;
+  overscroll-behavior-x: contain;
   overflow-wrap: anywhere;
   font-size: 15px;
 }
@@ -374,6 +376,7 @@ article {
 
 .composer button {
   min-width: 84px;
+  min-height: 44px;
   padding: 0 15px;
   border: 0;
   border-radius: 10px;
@@ -462,6 +465,52 @@ button:focus-visible {
 
   .composer {
     width: calc(100% - 28px);
-    margin-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    margin-bottom: 12px;
+    padding-bottom: calc(7px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (max-width: 520px) {
+  .composer {
+    width: calc(100% - 20px);
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .composer textarea {
+    order: 1;
+    flex: 1 1 calc(100% - 6px);
+    width: calc(100% - 6px);
+  }
+
+  .composer .attachment-panel {
+    order: 2;
+    flex: 1 1 auto;
+    min-width: 0;
+    flex-direction: row;
+    align-items: center;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    padding: 0;
+  }
+
+  .composer .attachment-button,
+  .composer .attachment-summary {
+    flex: none;
+    min-height: 44px;
+  }
+
+  .composer .attachment-summary {
+    max-width: min(180px, 45vw);
+  }
+
+  .composer .attachment-remove {
+    min-width: 44px !important;
+    min-height: 44px;
+  }
+
+  .composer button {
+    order: 2;
+    flex: 0 0 auto;
   }
 }

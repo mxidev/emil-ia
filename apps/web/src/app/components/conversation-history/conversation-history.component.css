@@ -20,6 +20,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  margin: 0;
   padding: 0 5px 14px;
   color: var(--color-muted);
   font-size: 12px;
@@ -37,6 +38,7 @@ button {
 
 .new-conversation {
   flex: none;
+  min-height: 44px;
   padding: 8px 10px;
   border-color: var(--color-secondary);
   color: var(--color-brand);
@@ -47,6 +49,7 @@ button {
 .conversation-list {
   min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .conversation {
