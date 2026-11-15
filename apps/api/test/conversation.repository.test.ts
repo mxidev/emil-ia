@@ -118,4 +118,10 @@ describe("ConversationRepository attachments", () => {
       "content",
     );
   });
+
+  it("orders chat attachments deterministically when timestamps tie", () => {
+    expect(DATABASE_QUERIES.getAttachmentsForChat).toMatch(
+      /ORDER BY created_at ASC, id ASC$/,
+    );
+  });
 });
