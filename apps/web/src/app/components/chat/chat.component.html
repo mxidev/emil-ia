@@ -42,7 +42,26 @@
     <div class="content" [innerHTML]="render(message.content)"></div>
   </article>
 
-  <div class="typing" *ngIf="state.loading()">Pensando…</div>
+  <div
+    class="typing"
+    *ngIf="state.loading() || state.responseStatus()"
+    aria-live="polite"
+    role="status"
+  >
+    <span
+      class="thinking-label"
+      [class.thinking-label-active]="thinking.cycle() % 2 === 1"
+      *ngIf="state.loading()"
+    >
+      {{ thinking.message() }}
+      <span class="thinking-dots" aria-hidden="true">
+        <span>.</span><span>.</span><span>.</span>
+      </span>
+    </span>
+    <span *ngIf="!state.loading() && state.responseStatus()">
+      {{ state.responseStatus() }}
+    </span>
+  </div>
   <div
     class="feedback"
     *ngIf="
@@ -145,6 +164,15 @@
     placeholder="Escribe tu consulta…"
     rows="1"
   ></textarea>
+  <button
+    class="stop-button"
+    type="button"
+    *ngIf="state.loading()"
+    aria-label="Detener respuesta"
+    (click)="state.cancel()"
+  >
+    Detener
+  </button>
   <button type="submit" [disabled]="state.loading() || !state.draft().trim()">
     Enviar <span>↵</span>
   </button>

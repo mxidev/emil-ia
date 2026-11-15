@@ -1,7 +1,16 @@
-import { ChangeDetectionStrategy, Component } from "@angular/core";
+import {
+  ChangeDetectionStrategy,
+  Component,
+  effect,
+  EffectRef,
+  Injector,
+  OnDestroy,
+  OnInit,
+} from "@angular/core";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { ChatStateService } from "../../services/chat-state.service";
 import { MarkdownService } from "../../services/markdown.service";
+import { ThinkingStatusService } from "../../services/thinking-status.service";
 
 @Component({
   selector: "app-chat",
@@ -10,14 +19,33 @@ import { MarkdownService } from "../../services/markdown.service";
   styleUrl: "./chat.component.css",
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ChatComponent {
+export class ChatComponent implements OnInit, OnDestroy {
   attachmentsExpanded = false;
+  private loadingEffect: EffectRef | undefined;
 
   constructor(
     readonly state: ChatStateService,
     private readonly markdown: MarkdownService,
     private readonly sanitizer: DomSanitizer,
+    readonly thinking: ThinkingStatusService = new ThinkingStatusService(),
+    private readonly injector?: Injector,
   ) {}
+
+  ngOnInit(): void {
+    if (!this.injector) return;
+    this.loadingEffect = effect(
+      () => {
+        if (this.state.loading()) this.thinking.start();
+        else this.thinking.stop();
+      },
+      { injector: this.injector },
+    );
+  }
+
+  ngOnDestroy(): void {
+    this.loadingEffect?.destroy();
+    this.thinking.stop();
+  }
 
   render(content: string): SafeHtml {
     return this.sanitizer.bypassSecurityTrustHtml(this.markdown.render(content));

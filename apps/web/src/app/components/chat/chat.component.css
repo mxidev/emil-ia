@@ -111,6 +111,54 @@ article {
   color: var(--color-muted);
 }
 
+.thinking-label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  opacity: 0.78;
+  transform: translateY(0);
+  transition:
+    opacity 180ms var(--ease-out),
+    transform 180ms var(--ease-out);
+}
+
+.thinking-label-active {
+  opacity: 1;
+  transform: translateY(-1px);
+}
+
+.thinking-dots {
+  display: inline-flex;
+  width: 1.1em;
+  justify-content: flex-start;
+}
+
+.thinking-dots span {
+  animation: thinking-dot 700ms var(--ease-in-out) infinite;
+}
+
+.thinking-dots span:nth-child(2) {
+  animation-delay: 100ms;
+}
+
+.thinking-dots span:nth-child(3) {
+  animation-delay: 200ms;
+}
+
+@keyframes thinking-dot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+
+  30% {
+    opacity: 1;
+    transform: translateY(-1px);
+  }
+}
+
 .feedback {
   display: flex;
   flex-wrap: wrap;
@@ -344,6 +392,12 @@ article {
   cursor: not-allowed;
 }
 
+.composer .stop-button {
+  border: 1px solid var(--color-secondary);
+  background: var(--color-surface);
+  color: var(--color-brand);
+}
+
 button:focus-visible {
   outline: 2px solid var(--color-brand);
   outline-offset: 2px;
@@ -370,6 +424,8 @@ button:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   .suggestions button,
   .feedback button,
+  .thinking-label,
+  .thinking-dots span,
   .attachment-summary,
   .attachment-remove,
   .attachment-toggle,
@@ -381,6 +437,12 @@ button:focus-visible {
   .suggestions button:active:not(:focus-visible),
   .feedback button:active:not(:focus-visible),
   .composer button:active:not(:disabled):not(:focus-visible) {
+    transform: none;
+  }
+
+  .thinking-label,
+  .thinking-dots span {
+    animation: none;
     transform: none;
   }
 }
