@@ -29,18 +29,37 @@
         </div>
       </div>
     </div>
-    <span class="status">● Local</span>
+    @if (auth.status() === "authenticated") {
+      <div class="header-end">
+        <span class="status">● Sesión activa</span>
+        <button class="logout-button" type="button" (click)="logout()">Cerrar sesión</button>
+      </div>
+    } @else {
+      <span class="status">● Sin sesión</span>
+    }
   </header>
-  <app-conversation-history
-    id="conversation-history-panel"
-    class="history-panel"
-    [attr.aria-hidden]="historyExpanded() ? null : 'true'"
-    [attr.inert]="historyExpanded() ? null : ''"
-  ></app-conversation-history>
-  <app-chat
-    id="chat-content"
-    class="chat-panel"
-    tabindex="-1"
-  ></app-chat>
-  <app-notification-center></app-notification-center>
+  @if (auth.status() === "loading") {
+    <section class="auth-state" aria-live="polite" aria-busy="true">
+      <p>Comprobando tu sesión…</p>
+    </section>
+  } @else if (auth.status() === "unauthenticated") {
+    <section class="auth-state" aria-labelledby="login-heading">
+      <h2 id="login-heading">Inicia sesión para estudiar</h2>
+      <p>Cada estudiante tiene su propio historial y documentos.</p>
+      <button class="login-button" type="button" (click)="login()">Entrar con Floci</button>
+    </section>
+  } @else {
+    <app-conversation-history
+      id="conversation-history-panel"
+      class="history-panel"
+      [attr.aria-hidden]="historyExpanded() ? null : 'true'"
+      [attr.inert]="historyExpanded() ? null : ''"
+    ></app-conversation-history>
+    <app-chat
+      id="chat-content"
+      class="chat-panel"
+      tabindex="-1"
+    ></app-chat>
+    <app-notification-center></app-notification-center>
+  }
 </main>

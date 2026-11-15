@@ -1,0 +1,58 @@
+import { Injectable, signal } from "@angular/core";
+import { API_BASE_URL } from "../constants/api.constants";
+import { ApiClientService } from "./api-client.service";
+
+export type AuthStatus = "loading" | "authenticated" | "unauthenticated";
+
+export interface AuthUser {
+  id: string;
+  displayName: string;
+  issuer?: string;
+  subject?: string;
+}
+
+type AuthClient = Pick<ApiClientService, "request">;
+
+@Injectable({ providedIn: "root" })
+export class AuthService {
+  readonly status = signal<AuthStatus>("loading");
+  readonly user = signal<AuthUser | null>(null);
+
+  constructor(private readonly client: AuthClient) {}
+
+  async initialize(): Promise<void> {
+    try {
+      const response = await this.client.request(`${API_BASE_URL}/auth/session`);
+      if (!response.ok) {
+        this.setUnauthenticated();
+        return;
+      }
+      const body = (await response.json()) as { user?: AuthUser };
+      if (!body.user) {
+        this.setUnauthenticated();
+        return;
+      }
+      this.user.set(body.user);
+      this.status.set("authenticated");
+    } catch {
+      this.setUnauthenticated();
+    }
+  }
+
+  login(): void {
+    globalThis.location.assign(`${API_BASE_URL}/auth/login`);
+  }
+
+  async logout(): Promise<void> {
+    try {
+      await this.client.request(`${API_BASE_URL}/auth/logout`, { method: "POST" });
+    } finally {
+      this.setUnauthenticated();
+    }
+  }
+
+  private setUnauthenticated(): void {
+    this.user.set(null);
+    this.status.set("unauthenticated");
+  }
+}

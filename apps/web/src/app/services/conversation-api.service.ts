@@ -1,6 +1,7 @@
 import { Injectable } from "@angular/core";
 import { API_BASE_URL } from "../constants/api.constants";
 import { readApiError } from "./api-error";
+import { ApiClientService } from "./api-client.service";
 import type {
   Conversation,
   ExportFormat,
@@ -11,6 +12,8 @@ import type {
 
 @Injectable({ providedIn: "root" })
 export class ConversationApiService {
+  constructor(private readonly client = new ApiClientService()) {}
+
   async list(): Promise<Conversation[]> {
     return this.getJson<Conversation[]>(`${API_BASE_URL}/conversations`);
   }
@@ -33,7 +36,7 @@ export class ConversationApiService {
   ): Promise<Attachment> {
     const form = new FormData();
     form.append("file", file);
-    const response = await fetch(
+    const response = await this.client.request(
       `${API_BASE_URL}/conversations/${conversationId}/attachments`,
       { method: "POST", body: form },
     );
@@ -45,7 +48,7 @@ export class ConversationApiService {
     conversationId: string,
     attachmentId: string,
   ): Promise<void> {
-    const response = await fetch(
+    const response = await this.client.request(
       `${API_BASE_URL}/conversations/${conversationId}/attachments/${attachmentId}`,
       { method: "DELETE" },
     );
@@ -57,7 +60,7 @@ export class ConversationApiService {
     rating: FeedbackRating,
     category?: string,
   ): Promise<void> {
-    const response = await fetch(
+    const response = await this.client.request(
       `${API_BASE_URL}/conversations/${conversationId}/feedback`,
       {
         method: "POST",
@@ -69,7 +72,7 @@ export class ConversationApiService {
   }
 
   async download(conversationId: string, format: ExportFormat): Promise<void> {
-    const response = await fetch(
+    const response = await this.client.request(
       `${API_BASE_URL}/conversations/${conversationId}/export.${format}`,
     );
     
@@ -84,7 +87,7 @@ export class ConversationApiService {
   }
 
   private async getJson<T>(url: string): Promise<T> {
-    const response = await fetch(url);
+    const response = await this.client.request(url);
     
     if (!response.ok) throw new Error(await readApiError(response));
     return response.json() as Promise<T>;

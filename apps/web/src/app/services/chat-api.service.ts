@@ -1,6 +1,7 @@
 import { Injectable } from "@angular/core";
 import { API_BASE_URL } from "../constants/api.constants";
 import { readApiError } from "./api-error";
+import { ApiClientService } from "./api-client.service";
 import type {
   ChatRequest,
   ChatResult,
@@ -9,12 +10,14 @@ import type {
 
 @Injectable({ providedIn: "root" })
 export class ChatApiService {
+  constructor(private readonly client = new ApiClientService()) {}
+
   async stream(
     request: ChatRequest,
     handlers: ChatStreamHandlers,
     signal?: AbortSignal,
   ): Promise<ChatResult> {
-    const response = await fetch(`${API_BASE_URL}/chat`, {
+    const response = await this.client.request(`${API_BASE_URL}/chat`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(request),

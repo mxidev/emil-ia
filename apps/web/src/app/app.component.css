@@ -250,3 +250,33 @@ small {
     font-size: 11px;
   }
 }
+.header-end {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.login-button,
+.logout-button {
+  min-height: 2.75rem;
+  border: 1px solid var(--border-color, #cbd5e1);
+  border-radius: 0.65rem;
+  padding: 0.55rem 0.85rem;
+  background: var(--surface-strong, #ffffff);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.auth-state {
+  display: grid;
+  place-content: center;
+  min-height: 60vh;
+  padding: 2rem;
+  text-align: center;
+}
+
+.auth-state p {
+  max-width: 34rem;
+  margin-inline: auto;
+}
