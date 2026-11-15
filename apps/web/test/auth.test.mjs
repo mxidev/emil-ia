@@ -83,6 +83,49 @@ test("navigates through the provider logout URL after local logout", async () =>
   }
 });
 
+test("clears local state without navigating when logout fails", async () => {
+  const originalLocation = globalThis.location;
+  let destination;
+  globalThis.location = { assign: (url) => { destination = url; } };
+  const client = {
+    request: async () => new Response(JSON.stringify({
+      logoutUrl: "https://attacker.invalid/logout",
+    }), { status: 503, headers: { "content-type": "application/json" } }),
+  };
+
+  try {
+    const auth = new AuthService(client);
+    auth.user.set({ id: "user-1", displayName: "Ada" });
+    auth.status.set("authenticated");
+
+    await auth.logout();
+
+    assert.equal(auth.status(), "unauthenticated");
+    assert.equal(auth.user(), null);
+    assert.equal(destination, undefined);
+  } finally {
+    globalThis.location = originalLocation;
+  }
+});
+
+test("does not navigate when the successful logout response has no provider URL", async () => {
+  const originalLocation = globalThis.location;
+  let destination;
+  globalThis.location = { assign: (url) => { destination = url; } };
+
+  try {
+    const auth = new AuthService({
+      request: async () => new Response(JSON.stringify({ logoutUrl: null }), { status: 200 }),
+    });
+
+    await auth.logout();
+
+    assert.equal(destination, undefined);
+  } finally {
+    globalThis.location = originalLocation;
+  }
+});
+
 test("returns to unauthenticated state when a later API request expires the session", async () => {
   let unauthorizedHandler;
   const client = {
