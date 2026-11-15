@@ -58,12 +58,7 @@ export class ChatStateService {
       ]);
       this.messages.set(messages);
       this.attachments.set(attachments);
-      this.selectedAttachmentIds.set(
-        attachments
-          .filter((attachment) => attachment.status === "ready")
-          .slice(0, 5)
-          .map((attachment) => attachment.id),
-      );
+      this.selectedAttachmentIds.set([]);
       this.conversationId.set(id);
       this.feedbackSent.set(false);
       this.error.set(null);

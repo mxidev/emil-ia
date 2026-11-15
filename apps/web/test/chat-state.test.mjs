@@ -190,7 +190,7 @@ test("failed PDF upload publishes one error notice", async () => {
   );
 });
 
-test("conversation reload restores PDF metadata and ready selections", async () => {
+test("conversation reload restores PDF metadata without selecting PDFs", async () => {
   const attachment = {
     id: "attachment-1",
     conversationId: "conversation-1",
@@ -202,16 +202,26 @@ test("conversation reload restores PDF metadata and ready selections", async () 
     createdAt: "2026-10-15T00:00:00.000Z",
     updatedAt: "2026-10-15T00:00:00.000Z",
   };
+  const failedAttachment = {
+    ...attachment,
+    id: "attachment-2",
+    filename: "scan.pdf",
+    status: "failed",
+    extractionError: "No extractable text found",
+  };
   const { state } = setup({
     conversationApi: {
       messages: async () => [{ role: "user", content: "Hola" }],
-      attachments: async () => [attachment],
+      attachments: async () => [attachment, failedAttachment],
     },
   });
 
   await state.selectConversation("conversation-1");
 
-  assert.deepEqual(state.attachments(), [attachment]);
+  assert.deepEqual(state.attachments(), [attachment, failedAttachment]);
+  assert.deepEqual(state.selectedAttachmentIds(), []);
+
+  state.toggleAttachmentSelection("attachment-1");
   assert.deepEqual(state.selectedAttachmentIds(), ["attachment-1"]);
 });
 
