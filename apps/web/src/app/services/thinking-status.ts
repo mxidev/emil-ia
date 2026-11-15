@@ -1,11 +1,11 @@
 import { signal } from "@angular/core";
 
 export const THINKING_MESSAGES = [
-  "Procesando tu consulta…",
-  "Pensando paso a paso…",
-  "Ordenando ecuaciones y pistas…",
-  "Consultando a las mentes maestras de las matemáticas…",
-  "Revisando que todo tenga sentido…",
+  "Procesando tu consulta",
+  "Pensando paso a paso",
+  "Ordenando ecuaciones y pistas",
+  "Consultando a las mentes maestras de las matemáticas",
+  "Revisando que todo tenga sentido",
 ] as const;
 
 export interface ThinkingClock {
