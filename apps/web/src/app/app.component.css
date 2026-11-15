@@ -167,6 +167,12 @@ small {
   grid-column: 2;
   min-width: 0;
   min-height: 0;
+  scroll-margin-block-start: 20px;
+}
+
+.chat-panel:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: -2px;
 }
 
 @media (max-width: 760px) {

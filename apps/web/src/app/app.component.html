@@ -1,3 +1,5 @@
+<a class="skip-link" href="#chat-content">Saltar al contenido</a>
+
 <main
   class="shell"
   [class.history-collapsed]="!historyExpanded()"
@@ -35,6 +37,10 @@
     [attr.aria-hidden]="historyExpanded() ? null : 'true'"
     [attr.inert]="historyExpanded() ? null : ''"
   ></app-conversation-history>
-  <app-chat class="chat-panel"></app-chat>
+  <app-chat
+    id="chat-content"
+    class="chat-panel"
+    tabindex="-1"
+  ></app-chat>
   <app-notification-center></app-notification-center>
 </main>

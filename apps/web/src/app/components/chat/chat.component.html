@@ -1,4 +1,9 @@
-<section class="chat">
+<section
+  class="chat"
+  aria-labelledby="chat-heading"
+  [attr.aria-busy]="state.loading()"
+>
+  <h2 id="chat-heading" class="sr-only">Conversación académica</h2>
   <div class="welcome" *ngIf="state.messages().length === 0">
     <div class="hero">¿Qué quieres entender hoy?</div>
     <p>
@@ -46,6 +51,7 @@
     class="typing"
     *ngIf="state.loading() || state.responseStatus()"
     aria-live="polite"
+    aria-atomic="true"
     role="status"
   >
     <span
