@@ -16,7 +16,9 @@ export class AppComponent implements OnInit {
   constructor(
     private readonly chatState: ChatStateService,
     readonly auth: AuthService,
-  ) {}
+  ) {
+    this.auth.onUnauthenticated(() => this.chatState.startNewConversation());
+  }
 
   ngOnInit(): void {
     void this.initialize();

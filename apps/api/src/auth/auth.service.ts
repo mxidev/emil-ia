@@ -29,6 +29,8 @@ export interface AuthServiceClock {
 }
 
 export class AuthService {
+  private readonly refreshes = new Map<string, Promise<ProviderTokens | null>>();
+
   constructor(
     private readonly config: AuthConfig,
     private readonly repository: AuthRepositoryPort,
@@ -121,16 +123,9 @@ export class AuthService {
 
     let providerTokens = session.providerTokens;
     if (providerTokens.accessTokenExpiresAt.getTime() <= this.clock().getTime()) {
-      try {
-        providerTokens = await this.provider.refresh(providerTokens.refreshToken);
-        const claims = await this.verifier.verify(providerTokens.accessToken);
-        if (claims.issuer !== user.issuer || claims.subject !== user.subject) {
-          throw new Error("Refreshed token identity does not match session");
-        }
-      } catch {
-        await this.repository.revokeSession(sessionHash);
-        return null;
-      }
+      const refreshed = await this.refreshSession(sessionHash, session.providerTokens, user);
+      if (!refreshed) return null;
+      providerTokens = refreshed;
     }
 
     const now = this.clock();
@@ -152,6 +147,50 @@ export class AuthService {
       // Local revocation below is authoritative even when the provider is unavailable.
     } finally {
       await this.repository.revokeSession(sessionHash);
+    }
+  }
+
+  private refreshSession(
+    sessionHash: string,
+    currentTokens: ProviderTokens,
+    user: AuthenticatedUser,
+  ): Promise<ProviderTokens | null> {
+    const pending = this.refreshes.get(sessionHash);
+    if (pending) return pending;
+
+    const refreshPromise = this.performRefresh(sessionHash, currentTokens, user);
+    this.refreshes.set(sessionHash, refreshPromise);
+    void refreshPromise.then(
+      () => this.clearRefresh(sessionHash, refreshPromise),
+      () => this.clearRefresh(sessionHash, refreshPromise),
+    );
+    return refreshPromise;
+  }
+
+  private async performRefresh(
+    sessionHash: string,
+    currentTokens: ProviderTokens,
+    user: AuthenticatedUser,
+  ): Promise<ProviderTokens | null> {
+    try {
+      const providerTokens = await this.provider.refresh(currentTokens.refreshToken);
+      const claims = await this.verifier.verify(providerTokens.accessToken);
+      if (claims.issuer !== user.issuer || claims.subject !== user.subject) {
+        throw new Error("Refreshed token identity does not match session");
+      }
+      return providerTokens;
+    } catch {
+      await this.repository.revokeSession(sessionHash);
+      return null;
+    }
+  }
+
+  private clearRefresh(
+    sessionHash: string,
+    refreshPromise: Promise<ProviderTokens | null>,
+  ): void {
+    if (this.refreshes.get(sessionHash) === refreshPromise) {
+      this.refreshes.delete(sessionHash);
     }
   }
 

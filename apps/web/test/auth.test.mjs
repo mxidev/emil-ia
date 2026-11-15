@@ -58,3 +58,18 @@ test("clears local auth state after logout", async () => {
   assert.equal(auth.user(), null);
   assert.equal(calls[0].method, "POST");
 });
+
+test("returns to unauthenticated state when a later API request expires the session", async () => {
+  let unauthorizedHandler;
+  const client = {
+    setUnauthorizedHandler: (handler) => { unauthorizedHandler = handler; },
+    request: async () => new Response(JSON.stringify({ user: { id: "user-1", displayName: "Ada" } }), { status: 200 }),
+  };
+  const auth = new AuthService(client);
+
+  await auth.initialize();
+  unauthorizedHandler();
+
+  assert.equal(auth.status(), "unauthenticated");
+  assert.equal(auth.user(), null);
+});

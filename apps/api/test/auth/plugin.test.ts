@@ -47,6 +47,20 @@ describe("auth plugin", () => {
     await app.close();
   });
 
+  it("does not reach a protected handler with a bearer token", async () => {
+    const { app, auth } = await appWithProtectedRoute();
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/protected",
+      headers: { authorization: "Bearer malformed-token" },
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(auth.getSession).not.toHaveBeenCalled();
+    await app.close();
+  });
+
   it("exposes only the internally resolved user to protected routes", async () => {
     const { app } = await appWithProtectedRoute();
 

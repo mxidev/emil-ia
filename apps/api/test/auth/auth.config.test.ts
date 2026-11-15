@@ -39,4 +39,37 @@ describe("loadAuthConfig", () => {
 
     expect(() => loadAuthConfig(env)).toThrow(/32 bytes/);
   });
+
+  it("rejects an insecure cookie in production", () => {
+    const env = validEnv();
+    env.NODE_ENV = "production";
+    env.AUTH_COOKIE_SECURE = "false";
+    env.AUTH_ISSUER = "https://login.example/pool-123";
+    env.AUTH_REDIRECT_URI = "https://app.example/api/auth/callback";
+    env.AUTH_LOGOUT_URI = "https://app.example/";
+    env.AUTH_ALLOWED_ORIGIN = "https://app.example";
+
+    expect(() => loadAuthConfig(env)).toThrow(/AUTH_COOKIE_SECURE/);
+  });
+
+  it("requires HTTPS for production OIDC and browser URLs", () => {
+    const env = validEnv();
+    env.NODE_ENV = "production";
+
+    expect(() => loadAuthConfig(env)).toThrow(/AUTH_ISSUER.*https/);
+  });
+
+  it("rejects an origin with a path", () => {
+    const env = validEnv();
+    env.AUTH_ALLOWED_ORIGIN = "http://localhost:4200/student";
+
+    expect(() => loadAuthConfig(env)).toThrow(/only an origin/);
+  });
+
+  it("rejects a wildcard origin", () => {
+    const env = validEnv();
+    env.AUTH_ALLOWED_ORIGIN = "*";
+
+    expect(() => loadAuthConfig(env)).toThrow(/wildcard/);
+  });
 });

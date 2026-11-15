@@ -68,5 +68,26 @@ describe("OidcClient", () => {
       refreshToken: "new-refresh",
     });
     expect(fetchImpl).toHaveBeenCalledTimes(3);
+    for (const call of fetchImpl.mock.calls) {
+      expect(call[1]?.signal).toBeInstanceOf(AbortSignal);
+    }
+  });
+
+  it("rejects malformed provider token responses", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        response({
+          authorization_endpoint: "https://login.example/authorize",
+          token_endpoint: "https://login.example/token",
+          jwks_uri: "https://login.example/jwks",
+        }),
+      )
+      .mockResolvedValueOnce(response({ access_token: "access", expires_in: "300" }));
+    const client = new OidcClient(config, fetchImpl);
+
+    await expect(
+      client.exchangeCode("code", "http://localhost:3000/api/auth/callback", "verifier"),
+    ).rejects.toThrow(/Authorization code exchange failed/);
   });
 });

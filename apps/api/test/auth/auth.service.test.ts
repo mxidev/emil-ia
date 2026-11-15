@@ -180,6 +180,71 @@ describe("AuthService", () => {
     expect(repo.touchSession).toHaveBeenCalled();
   });
 
+  it("shares one refresh when concurrent requests find the same expired session", async () => {
+    const repo = repository();
+    const session: AuthSession = {
+      sessionHash: hashToken("session-token"),
+      userId: "user-123",
+      providerTokens: {
+        ...providerTokens,
+        accessTokenExpiresAt: new Date("2026-11-15T17:59:00.000Z"),
+      },
+      createdAt: now,
+      lastSeenAt: now,
+      expiresAt: new Date("2026-11-22T18:00:00.000Z"),
+      absoluteExpiresAt: new Date("2026-12-15T18:00:00.000Z"),
+      revokedAt: null,
+    };
+    repo.findSession.mockResolvedValue(session);
+    repo.findUserById.mockResolvedValue({
+      id: "user-123",
+      displayName: "Ada Lovelace",
+      issuer: config.issuer,
+      subject: "subject-123",
+    });
+    const oidc = provider();
+    let releaseRefresh!: () => void;
+    let refreshStarted!: () => void;
+    const refreshGate = new Promise<void>((resolve) => {
+      releaseRefresh = resolve;
+    });
+    const refreshObserved = new Promise<void>((resolve) => {
+      refreshStarted = resolve;
+    });
+    oidc.refresh.mockImplementation(async () => {
+      refreshStarted();
+      await refreshGate;
+      return providerTokens;
+    });
+    const service = new AuthService(
+      config,
+      repo,
+      oidc,
+      {
+        verify: vi.fn(async () => ({
+          issuer: config.issuer,
+          subject: "subject-123",
+          clientId: config.clientId,
+          tokenUse: "access" as const,
+          expiresAt: Math.floor(now.getTime() / 1000) + 300,
+        })),
+      },
+      () => now,
+    );
+
+    const first = service.getSession("session-token");
+    await refreshObserved;
+    const second = service.getSession("session-token");
+    releaseRefresh();
+
+    await expect(Promise.all([first, second])).resolves.toEqual([
+      expect.objectContaining({ id: "user-123" }),
+      expect.objectContaining({ id: "user-123" }),
+    ]);
+    expect(oidc.refresh).toHaveBeenCalledOnce();
+    expect(repo.revokeSession).not.toHaveBeenCalled();
+  });
+
   it("revokes the local session even when provider revoke fails", async () => {
     const repo = repository();
     repo.findSession.mockResolvedValue({ providerTokens } as AuthSession);

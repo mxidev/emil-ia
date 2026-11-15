@@ -53,3 +53,18 @@ test("preserves abort signals and does not retry a 401", async () => {
     globalThis.fetch = originalFetch;
   }
 });
+
+test("notifies the session owner when a later request returns 401", async () => {
+  const originalFetch = globalThis.fetch;
+  let notified = 0;
+  globalThis.fetch = async () => new Response(null, { status: 401 });
+
+  try {
+    const client = new ApiClientService();
+    client.setUnauthorizedHandler(() => { notified += 1; });
+    await client.request("http://localhost:3000/api/conversations");
+    assert.equal(notified, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

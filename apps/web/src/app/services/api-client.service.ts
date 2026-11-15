@@ -14,6 +14,12 @@ function csrfCookie(): string | undefined {
 
 @Injectable({ providedIn: "root" })
 export class ApiClientService {
+  private unauthorizedHandler: (() => void) | undefined;
+
+  setUnauthorizedHandler(handler: () => void): void {
+    this.unauthorizedHandler = handler;
+  }
+
   async request(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
     const method = (init.method ?? "GET").toUpperCase();
     const headers = new Headers(init.headers);
@@ -21,10 +27,12 @@ export class ApiClientService {
       const csrf = csrfCookie();
       if (csrf) headers.set("x-csrf-token", csrf);
     }
-    return fetch(input, {
+    const response = await fetch(input, {
       ...init,
       credentials: "include",
       headers,
     });
+    if (response.status === 401) this.unauthorizedHandler?.();
+    return response;
   }
 }

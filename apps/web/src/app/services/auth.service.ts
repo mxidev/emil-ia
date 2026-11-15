@@ -11,14 +11,23 @@ export interface AuthUser {
   subject?: string;
 }
 
-type AuthClient = Pick<ApiClientService, "request">;
+type AuthClient = Pick<ApiClientService, "request"> &
+  Partial<Pick<ApiClientService, "setUnauthorizedHandler">>;
 
 @Injectable({ providedIn: "root" })
 export class AuthService {
   readonly status = signal<AuthStatus>("loading");
   readonly user = signal<AuthUser | null>(null);
+  private readonly unauthenticatedHandlers = new Set<() => void>();
 
-  constructor(private readonly client: AuthClient) {}
+  constructor(private readonly client: AuthClient) {
+    this.client.setUnauthorizedHandler?.(() => this.setUnauthenticated());
+  }
+
+  onUnauthenticated(handler: () => void): () => void {
+    this.unauthenticatedHandlers.add(handler);
+    return () => this.unauthenticatedHandlers.delete(handler);
+  }
 
   async initialize(): Promise<void> {
     try {
@@ -52,7 +61,11 @@ export class AuthService {
   }
 
   private setUnauthenticated(): void {
+    const wasAuthenticated = this.status() === "authenticated";
     this.user.set(null);
     this.status.set("unauthenticated");
+    if (wasAuthenticated) {
+      for (const handler of this.unauthenticatedHandlers) handler();
+    }
   }
 }
