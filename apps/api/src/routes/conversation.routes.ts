@@ -13,16 +13,23 @@ export function registerConversationRoutes(
   repository: ConversationRepository,
   exportService: ExportService,
 ): void {
-  app.get("/api/conversations", () => repository.listConversations());
+  app.get(
+    "/api/conversations",
+    { preHandler: app.authenticate },
+    (request) => repository.listConversations(request.authUser!.id),
+  );
 
-  app.get("/api/conversations/:id/messages", (request) => {
+  app.get("/api/conversations/:id/messages", { preHandler: app.authenticate }, async (request, reply) => {
     const { id } = request.params as { id: string };
-    return repository.getMessages(id);
+    if (!(await repository.findConversationTitle(request.authUser!.id, id))) {
+      return reply.code(404).send({ error: "Conversation not found" });
+    }
+    return repository.getMessages(request.authUser!.id, id);
   });
 
-  app.get("/api/conversations/:id/export.md", async (request, reply) => {
+  app.get("/api/conversations/:id/export.md", { preHandler: app.authenticate }, async (request, reply) => {
     const { id } = request.params as { id: string };
-    const markdown = await exportService.createMarkdown(id);
+    const markdown = await exportService.createMarkdown(request.authUser!.id, id);
     if (!markdown) return reply.notFound("Conversación no encontrada");
     
     return reply
@@ -34,9 +41,9 @@ export function registerConversationRoutes(
       .send(markdown);
   });
 
-  app.get("/api/conversations/:id/export.pdf", async (request, reply) => {
+  app.get("/api/conversations/:id/export.pdf", { preHandler: app.authenticate }, async (request, reply) => {
     const { id } = request.params as { id: string };
-    const pdf = await exportService.createPdf(id);
+    const pdf = await exportService.createPdf(request.authUser!.id, id);
     if (!pdf) return reply.notFound("Conversación no encontrada");
     
     return reply
@@ -48,14 +55,22 @@ export function registerConversationRoutes(
       .send(pdf);
   });
 
-  app.post("/api/conversations/:id/feedback", async (request, reply) => {
+  app.post("/api/conversations/:id/feedback", { preHandler: [app.authenticate, app.requireCsrf] }, async (request, reply) => {
     const parsed = feedbackSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.badRequest(JSON.stringify(parsed.error.flatten()));
     }
     
     const { id } = request.params as { id: string };
-    await repository.addFeedback(id, parsed.data.rating, parsed.data.category);
+    if (!(await repository.findConversationTitle(request.authUser!.id, id))) {
+      return reply.code(404).send({ error: "Conversation not found" });
+    }
+    await repository.addFeedback(
+      request.authUser!.id,
+      id,
+      parsed.data.rating,
+      parsed.data.category,
+    );
     return { ok: true };
   });
 }

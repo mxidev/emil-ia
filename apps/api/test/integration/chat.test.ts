@@ -79,7 +79,7 @@ function multipartPdf(content: Buffer): { body: Buffer; contentType: string } {
 
 it("persists a sandbox-verified answer that can be retrieved through history", async () => {
   fixture = await createIntegrationApp(provider);
-  const response = await fixture.app.inject({
+  const response = await fixture.inject({
     method: "POST",
     url: "/api/chat",
     payload: { content: "Calcula 6 * 7" },
@@ -88,7 +88,7 @@ it("persists a sandbox-verified answer that can be retrieved through history", a
   expect(response.body).toContain("event: done");
   expect(response.body).not.toContain("event: error");
   expect(response.body).toContain('"inputTokens":12');
-  const history = await fixture.app.inject({
+  const history = await fixture.inject({
     url: `/api/conversations/${response.headers["x-conversation-id"]}/messages`,
   });
   expect(history.statusCode).toBe(200);
@@ -100,7 +100,7 @@ it("persists a sandbox-verified answer that can be retrieved through history", a
         "42\n\n> Cálculo verificado automáticamente en el sandbox. Resultado: `42`.",
     },
   ]);
-  const analytics = await fixture.app.inject({ url: "/api/analytics/summary" });
+  const analytics = await fixture.inject({ url: "/api/analytics/summary" });
   expect(analytics.json()).toMatchObject({
     conversations: 1,
     messages: 2,
@@ -110,7 +110,7 @@ it("persists a sandbox-verified answer that can be retrieved through history", a
 
 it("persists a PDF and reloads metadata without returning binary content", async () => {
   fixture = await createIntegrationApp(provider);
-  const conversation = await fixture.app.inject({
+  const conversation = await fixture.inject({
     method: "POST",
     url: "/api/chat",
     payload: { content: "Prepara una conversación para un PDF" },
@@ -118,7 +118,7 @@ it("persists a PDF and reloads metadata without returning binary content", async
   const conversationId = conversation.headers["x-conversation-id"];
   const upload = multipartPdf(await createPdf("El método de Euler aproxima soluciones."));
 
-  const uploaded = await fixture.app.inject({
+  const uploaded = await fixture.inject({
     method: "POST",
     url: `/api/conversations/${conversationId}/attachments`,
     headers: { "content-type": upload.contentType },
@@ -131,7 +131,7 @@ it("persists a PDF and reloads metadata without returning binary content", async
     status: "ready",
   });
 
-  const listed = await fixture.app.inject({
+  const listed = await fixture.inject({
     method: "GET",
     url: `/api/conversations/${conversationId}/attachments`,
   });
@@ -147,13 +147,13 @@ it("keeps a warning in history when the real sandbox rejects the plan", async ()
       return '{"code":"import os\\nresult = 42"}';
     },
   });
-  const response = await fixture.app.inject({
+  const response = await fixture.inject({
     method: "POST",
     url: "/api/chat",
     payload: { content: "Calcula 6 * 7" },
   });
   expect(response.body).toContain("event: done");
-  const history = await fixture.app.inject({
+  const history = await fixture.inject({
     url: `/api/conversations/${response.headers["x-conversation-id"]}/messages`,
   });
   expect(history.json()).toEqual([
@@ -174,7 +174,7 @@ it("does not save a partial assistant answer or execution when the provider fail
       throw new Error("Provider connection interrupted");
     },
   });
-  const response = await fixture.app.inject({
+  const response = await fixture.inject({
     method: "POST",
     url: "/api/chat",
     payload: { content: "Explica un vector" },
@@ -182,13 +182,13 @@ it("does not save a partial assistant answer or execution when the provider fail
   expect(response.body).toContain("Respuesta incompleta");
   expect(response.body).toContain("event: error");
   expect(response.body).not.toContain("event: done");
-  const history = await fixture.app.inject({
+  const history = await fixture.inject({
     url: `/api/conversations/${response.headers["x-conversation-id"]}/messages`,
   });
   expect(history.json()).toEqual([
     { role: "user", content: "Explica un vector" },
   ]);
-  const analytics = await fixture.app.inject({ url: "/api/analytics/summary" });
+  const analytics = await fixture.inject({ url: "/api/analytics/summary" });
   expect(analytics.json()).toMatchObject({
     conversations: 1,
     messages: 1,
@@ -200,14 +200,14 @@ it("reconstructs conversation context after history is loaded again", async () =
   const requests: AIRequest[] = [];
   fixture = await createIntegrationApp(contextualProvider(requests));
 
-  const first = await fixture.app.inject({
+  const first = await fixture.inject({
     method: "POST",
     url: "/api/chat",
     payload: { content: "Explica la idea principal" },
   });
   const conversationId = first.headers["x-conversation-id"];
 
-  const history = await fixture.app.inject({
+  const history = await fixture.inject({
     url: `/api/conversations/${conversationId}/messages`,
   });
   expect(history.json()).toEqual([
@@ -215,7 +215,7 @@ it("reconstructs conversation context after history is loaded again", async () =
     { role: "assistant", content: "Primer resultado" },
   ]);
 
-  const followUp = await fixture.app.inject({
+  const followUp = await fixture.inject({
     method: "POST",
     url: "/api/chat",
     payload: {
@@ -238,21 +238,21 @@ it("keeps provider context isolated between conversations", async () => {
   const requests: AIRequest[] = [];
   fixture = await createIntegrationApp(contextualProvider(requests));
 
-  const firstConversation = await fixture.app.inject({
+  const firstConversation = await fixture.inject({
     method: "POST",
     url: "/api/chat",
     payload: { content: "Explica el concepto A" },
   });
   const firstId = firstConversation.headers["x-conversation-id"];
 
-  const secondConversation = await fixture.app.inject({
+  const secondConversation = await fixture.inject({
     method: "POST",
     url: "/api/chat",
     payload: { content: "Explica el concepto B" },
   });
   const secondId = secondConversation.headers["x-conversation-id"];
 
-  await fixture.app.inject({
+  await fixture.inject({
     method: "POST",
     url: "/api/chat",
     payload: {
@@ -277,14 +277,14 @@ it("uses a reloaded PDF in follow-up chat and blocks another conversation", asyn
   const requests: AIRequest[] = [];
   fixture = await createIntegrationApp(contextualProvider(requests));
 
-  const first = await fixture.app.inject({
+  const first = await fixture.inject({
     method: "POST",
     url: "/api/chat",
     payload: { content: "Crea una conversación sobre métodos numéricos" },
   });
   const firstId = first.headers["x-conversation-id"];
   const upload = multipartPdf(await createPdf("El método de Euler aproxima soluciones."));
-  const uploaded = await fixture.app.inject({
+  const uploaded = await fixture.inject({
     method: "POST",
     url: `/api/conversations/${firstId}/attachments`,
     headers: { "content-type": upload.contentType },
@@ -292,13 +292,13 @@ it("uses a reloaded PDF in follow-up chat and blocks another conversation", asyn
   });
   const attachmentId = uploaded.json().id;
 
-  const reloaded = await fixture.app.inject({
+  const reloaded = await fixture.inject({
     method: "GET",
     url: `/api/conversations/${firstId}/attachments`,
   });
   expect(reloaded.json()).toEqual([uploaded.json()]);
 
-  const followUp = await fixture.app.inject({
+  const followUp = await fixture.inject({
     method: "POST",
     url: "/api/chat",
     payload: {
@@ -315,14 +315,14 @@ it("uses a reloaded PDF in follow-up chat and blocks another conversation", asyn
     }),
   );
 
-  const second = await fixture.app.inject({
+  const second = await fixture.inject({
     method: "POST",
     url: "/api/chat",
     payload: { content: "Crea otra conversación" },
   });
   const secondId = second.headers["x-conversation-id"];
   const requestCount = requests.length;
-  const forbidden = await fixture.app.inject({
+  const forbidden = await fixture.inject({
     method: "POST",
     url: "/api/chat",
     payload: {

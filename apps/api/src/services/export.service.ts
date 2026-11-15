@@ -4,11 +4,11 @@ import type { ConversationRepository } from "../repositories/conversation.reposi
 export class ExportService {
   constructor(private readonly repository: ConversationRepository) {}
 
-  async createMarkdown(conversationId: string): Promise<string | null> {
-    const title = await this.repository.findConversationTitle(conversationId);
+  async createMarkdown(userId: string, conversationId: string): Promise<string | null> {
+    const title = await this.repository.findConversationTitle(userId, conversationId);
     if (!title) return null;
     
-    const messages = await this.repository.getMessages(conversationId);
+    const messages = await this.repository.getMessages(userId, conversationId);
     const content = messages
       .map(
         (message) =>
@@ -18,8 +18,8 @@ export class ExportService {
     return `# ${title}\n\n${content}\n`;
   }
 
-  async createPdf(conversationId: string): Promise<Buffer | null> {
-    const markdown = await this.createMarkdown(conversationId);
+  async createPdf(userId: string, conversationId: string): Promise<Buffer | null> {
+    const markdown = await this.createMarkdown(userId, conversationId);
     if (!markdown) return null;
     
     const document = new PDFDocument({ margin: 54 });

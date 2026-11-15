@@ -39,27 +39,22 @@ function mapAttachmentMetadata(row: AttachmentRow): AttachmentMetadata {
 }
 
 export class ConversationRepository {
-  private readonly localUserId = "00000000-0000-4000-8000-000000000001";
-
   constructor(private readonly pool: Pool) {}
 
   async initialize(): Promise<void> {
     await this.pool.query(INITIAL_SCHEMA_SQL);
-    await this.pool.query(DATABASE_QUERIES.createLocalUser, [
-      this.localUserId,
-      "Usuario local",
-    ]);
   }
 
-  async createConversation(id: string, title: string): Promise<void> {
+  async createConversation(userId: string, id: string, title: string): Promise<void> {
     await this.pool.query(DATABASE_QUERIES.createConversation, [
       id,
-      this.localUserId,
+      userId,
       title.slice(0, 120),
     ]);
   }
 
   async addMessage(
+    userId: string,
     conversationId: string,
     message: StoredMessage,
   ): Promise<void> {
@@ -68,19 +63,20 @@ export class ConversationRepository {
       conversationId,
       message.role,
       message.content,
+      userId,
     ]);
-    await this.pool.query(DATABASE_QUERIES.touchConversation, [conversationId]);
+    await this.pool.query(DATABASE_QUERIES.touchConversation, [conversationId, userId]);
   }
 
-  async getMessages(conversationId: string): Promise<StoredMessage[]> {
+  async getMessages(userId: string, conversationId: string): Promise<StoredMessage[]> {
     const result = await this.pool.query<StoredMessage>(
       DATABASE_QUERIES.getMessages,
-      [conversationId],
+      [conversationId, userId],
     );
     return result.rows;
   }
 
-  async recordExecution(data: ModelExecutionRecord): Promise<void> {
+  async recordExecution(userId: string, data: ModelExecutionRecord): Promise<void> {
     await this.pool.query(DATABASE_QUERIES.recordExecution, [
       data.id,
       data.conversationId,
@@ -92,26 +88,28 @@ export class ConversationRepository {
       data.inputTokens ?? null,
       data.outputTokens ?? null,
       data.metadata ?? null,
+      userId,
     ]);
   }
 
-  async listConversations(): Promise<ConversationSummary[]> {
+  async listConversations(userId: string): Promise<ConversationSummary[]> {
     const result = await this.pool.query<ConversationSummary>(
       DATABASE_QUERIES.listConversations,
-      [this.localUserId],
+      [userId],
     );
     return result.rows;
   }
 
-  async findConversationTitle(conversationId: string): Promise<string | null> {
+  async findConversationTitle(userId: string, conversationId: string): Promise<string | null> {
     const result = await this.pool.query<{ title: string }>(
       DATABASE_QUERIES.findConversationTitle,
-      [conversationId, this.localUserId],
+      [conversationId, userId],
     );
     return result.rows[0]?.title ?? null;
   }
 
   async addFeedback(
+    userId: string,
     conversationId: string,
     rating: "positive" | "negative",
     category?: string,
@@ -121,6 +119,7 @@ export class ConversationRepository {
       conversationId,
       rating,
       category ?? null,
+      userId,
     ]);
   }
 
@@ -137,37 +136,40 @@ export class ConversationRepository {
         data.extractedText,
         data.status,
         data.extractionError ?? null,
+        data.userId,
       ],
     );
     return mapAttachmentMetadata(result.rows[0]);
   }
 
-  async listAttachments(conversationId: string): Promise<AttachmentMetadata[]> {
+  async listAttachments(userId: string, conversationId: string): Promise<AttachmentMetadata[]> {
     const result = await this.pool.query<AttachmentRow>(
       DATABASE_QUERIES.listAttachments,
-      [conversationId],
+      [conversationId, userId],
     );
     return result.rows.map(mapAttachmentMetadata);
   }
 
   async deleteAttachment(
+    userId: string,
     conversationId: string,
     attachmentId: string,
   ): Promise<boolean> {
     const result = await this.pool.query<{ id: string }>(
       DATABASE_QUERIES.deleteAttachment,
-      [conversationId, attachmentId],
+      [conversationId, attachmentId, userId],
     );
     return result.rowCount === 1;
   }
 
   async getAttachmentsForChat(
+    userId: string,
     conversationId: string,
     ids: string[],
   ): Promise<StoredAttachment[]> {
     const result = await this.pool.query<AttachmentRow>(
       DATABASE_QUERIES.getAttachmentsForChat,
-      [conversationId, ids],
+      [conversationId, ids, userId],
     );
     return result.rows.map((row) => ({
       ...mapAttachmentMetadata(row),
@@ -176,8 +178,8 @@ export class ConversationRepository {
     }));
   }
 
-  async getAnalyticsSummary(): Promise<AnalyticsSummary> {
-    const parameters = [this.localUserId];
+  async getAnalyticsSummary(userId: string): Promise<AnalyticsSummary> {
+    const parameters = [userId];
     const [conversations, messages, executions, latency, feedback] =
       await Promise.all([
         this.pool.query<{ count: string }>(

@@ -36,6 +36,7 @@ export interface AnalyticsSummary {
 }
 
 export interface NewAttachment {
+  userId: string;
   id: string;
   conversationId: string;
   filename: string;

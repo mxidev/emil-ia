@@ -4,9 +4,39 @@ import { ChatRequestSchema } from "@emil-ia/contracts";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createCorsOptions } from "../src/cors.js";
 import { registerChatRoutes } from "../src/routes/chat.routes.js";
+import { registerAuthPlugin } from "../src/auth/auth.plugin.js";
+import type { AuthConfig, AuthenticatedUser } from "../src/auth/auth.types.js";
 import { AttachmentNotFoundError } from "../src/services/attachment.service.js";
 
 describe("chat routes", () => {
+  const config: AuthConfig = {
+    issuer: "http://localhost:4566/pool-123",
+    clientId: "client-123",
+    redirectUri: "http://localhost:3000/api/auth/callback",
+    logoutUri: "http://localhost:4200/",
+    allowedOrigin: "http://localhost:4200",
+    sessionSecret: Buffer.alloc(32, 8),
+    cookieName: "emilia_session",
+    cookieSecure: false,
+    sessionIdleTtlMs: 1000,
+    sessionAbsoluteTtlMs: 2000,
+    loginStateTtlMs: 1000,
+  };
+  const user: AuthenticatedUser = {
+    id: "student-a",
+    displayName: "Student A",
+    issuer: config.issuer,
+    subject: "student-a-subject",
+  };
+  const authHeaders = {
+    cookie: "emilia_session=session-token; emilia_csrf=csrf-token",
+    "x-csrf-token": "csrf-token",
+    origin: config.allowedOrigin,
+  };
+  function registerTestAuth(app: ReturnType<typeof Fastify>): void {
+    registerAuthPlugin(app, { config, service: { getSession: async () => user } });
+  }
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -42,11 +72,13 @@ describe("chat routes", () => {
     };
     vi.spyOn(Date, "now").mockImplementation(() => currentTime);
     const app = Fastify();
+    registerTestAuth(app);
     registerChatRoutes(app, chat as never);
 
     const response = await app.inject({
       method: "POST",
       url: "/api/chat",
+      headers: authHeaders,
       payload: { content: "Calcula 6 * 7" },
     });
 
@@ -64,6 +96,7 @@ describe("chat routes", () => {
   it("allows the browser to read the streamed response across origins", async () => {
     const app = Fastify();
     await app.register(cors, createCorsOptions());
+    registerTestAuth(app);
     registerChatRoutes(app, {
       prepare: async () => ({
         conversationId: "00000000-0000-4000-8000-000000000001",
@@ -81,7 +114,7 @@ describe("chat routes", () => {
     const response = await app.inject({
       method: "POST",
       url: "/api/chat",
-      headers: { origin: "http://localhost:4200" },
+      headers: authHeaders,
       payload: { content: "Explica un vector" },
     });
 
@@ -100,6 +133,7 @@ describe("chat routes", () => {
   it("passes selected attachment IDs to chat preparation", async () => {
     let preparedArguments: unknown[] = [];
     const app = Fastify();
+    registerTestAuth(app);
     registerChatRoutes(app, {
       prepare: async (...args: unknown[]) => {
         preparedArguments = args;
@@ -120,11 +154,13 @@ describe("chat routes", () => {
     const response = await app.inject({
       method: "POST",
       url: "/api/chat",
+      headers: authHeaders,
       payload: { content: "Resume el PDF", attachmentIds },
     });
 
     expect(response.statusCode).toBe(200);
     expect(preparedArguments).toEqual([
+      "student-a",
       "Resume el PDF",
       undefined,
       attachmentIds,
@@ -134,6 +170,7 @@ describe("chat routes", () => {
 
   it("returns attachment access errors before opening an SSE response", async () => {
     const app = Fastify();
+    registerTestAuth(app);
     registerChatRoutes(app, {
       prepare: async () => {
         throw new AttachmentNotFoundError("Attachment not found in conversation");
@@ -144,6 +181,7 @@ describe("chat routes", () => {
     const response = await app.inject({
       method: "POST",
       url: "/api/chat",
+      headers: authHeaders,
       payload: {
         content: "Resume el PDF",
         attachmentIds: ["00000000-0000-4000-8000-000000000002"],

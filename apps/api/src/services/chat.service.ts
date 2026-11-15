@@ -8,10 +8,23 @@ import type { AttachmentService } from "./attachment.service.js";
 
 type ChatRepository = Pick<
   ConversationRepository,
-  "createConversation" | "getMessages" | "addMessage" | "recordExecution"
+  | "createConversation"
+  | "findConversationTitle"
+  | "getMessages"
+  | "addMessage"
+  | "recordExecution"
 >;
 type MathVerifier = Pick<MathVerificationService, "verify">;
 type AttachmentContext = Pick<AttachmentService, "getContext">;
+
+export class ConversationNotFoundError extends Error {
+  readonly statusCode = 404;
+
+  constructor() {
+    super("Conversation not found");
+    this.name = "ConversationNotFoundError";
+  }
+}
 
 export class ChatService {
   constructor(
@@ -22,24 +35,27 @@ export class ChatService {
   ) {}
 
   async prepare(
+    userId: string,
     content: string,
     requestedConversationId?: string,
     attachmentIds: string[] = [],
   ) {
     const conversationId = requestedConversationId ?? crypto.randomUUID();
     if (!requestedConversationId) {
-      await this.repository.createConversation(conversationId, content);
+      await this.repository.createConversation(userId, conversationId, content);
+    } else if (!(await this.repository.findConversationTitle(userId, conversationId))) {
+      throw new ConversationNotFoundError();
     }
 
-    const messages = await this.repository.getMessages(conversationId);
+    const messages = await this.repository.getMessages(userId, conversationId);
     const attachmentMessages =
       attachmentIds.length > 0
-        ? await this.attachmentService?.getContext(conversationId, attachmentIds)
+        ? await this.attachmentService?.getContext(userId, conversationId, attachmentIds)
         : [];
     if (attachmentIds.length > 0 && !attachmentMessages) {
       throw new Error("Attachment context is not configured");
     }
-    await this.repository.addMessage(conversationId, { role: "user", content });
+    await this.repository.addMessage(userId, conversationId, { role: "user", content });
     messages.push({ role: "user", content });
     const contextualMessages = [
       ...(attachmentMessages ?? []),
@@ -73,6 +89,7 @@ export class ChatService {
   }
 
   async complete(data: {
+    userId: string;
     executionId: string;
     conversationId: string;
     content: string;
@@ -83,11 +100,11 @@ export class ChatService {
     inputTokens?: number;
     outputTokens?: number;
   }): Promise<void> {
-    await this.repository.addMessage(data.conversationId, {
+    await this.repository.addMessage(data.userId, data.conversationId, {
       role: "assistant",
       content: data.content,
     });
-    await this.repository.recordExecution({
+    await this.repository.recordExecution(data.userId, {
       id: data.executionId,
       conversationId: data.conversationId,
       profile: data.profile,

@@ -21,7 +21,7 @@ describe("ConversationRepository execution metadata", () => {
     } as unknown as Pool;
     const repository = new ConversationRepository(pool);
 
-    await repository.recordExecution({
+    await repository.recordExecution("student-a", {
       id: "00000000-0000-4000-8000-000000000042",
       conversationId: "00000000-0000-4000-8000-000000000001",
       profile: "MATH",
@@ -46,6 +46,7 @@ describe("ConversationRepository execution metadata", () => {
           12,
           34,
           { sandbox: { status: "success" } },
+          "student-a",
         ],
       },
     ]);
@@ -73,6 +74,7 @@ describe("ConversationRepository attachments", () => {
     } as unknown as Pool;
     const repository = new ConversationRepository(pool);
     const data: NewAttachment = {
+      userId: "student-a",
       id: "attachment-id",
       conversationId: "conversation-id",
       filename: "notes.pdf",
@@ -98,6 +100,7 @@ describe("ConversationRepository attachments", () => {
         data.extractedText,
         data.status,
         null,
+        data.userId,
       ],
     );
   });
@@ -108,11 +111,11 @@ describe("ConversationRepository attachments", () => {
     } as unknown as Pool;
     const repository = new ConversationRepository(pool);
 
-    await repository.listAttachments("conversation-id");
+    await repository.listAttachments("student-a", "conversation-id");
 
     expect(pool.query).toHaveBeenCalledWith(
       DATABASE_QUERIES.listAttachments,
-      ["conversation-id"],
+      ["conversation-id", "student-a"],
     );
     expect(DATABASE_QUERIES.listAttachments.toLowerCase()).not.toContain(
       "content",
@@ -121,7 +124,7 @@ describe("ConversationRepository attachments", () => {
 
   it("orders chat attachments deterministically when timestamps tie", () => {
     expect(DATABASE_QUERIES.getAttachmentsForChat).toMatch(
-      /ORDER BY created_at ASC, id ASC$/,
+      /ORDER BY a\.created_at ASC, a\.id ASC$/,
     );
   });
 });

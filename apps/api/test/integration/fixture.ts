@@ -2,6 +2,7 @@ import Fastify from "fastify";
 import multipart from "@fastify/multipart";
 import sensible from "@fastify/sensible";
 import { Pool } from "pg";
+import type { InjectOptions } from "light-my-request";
 import type { AIProvider } from "../../src/provider.js";
 import { ConversationRepository } from "../../src/repositories/conversation.repository.js";
 import { registerChatRoutes } from "../../src/routes/chat.routes.js";
@@ -14,6 +15,11 @@ import { MathVerificationService } from "../../src/services/math-verification.se
 import { SandboxClient } from "../../src/sandbox.js";
 import { AttachmentService, configuredPdfMaxBytes } from "../../src/services/attachment.service.js";
 import { PdfParseTextExtractor } from "../../src/services/pdf-text-extractor.js";
+import { AuthRepository } from "../../src/auth/auth.repository.js";
+import { AuthService } from "../../src/auth/auth.service.js";
+import { registerAuthPlugin } from "../../src/auth/auth.plugin.js";
+import { hashToken } from "../../src/auth/auth.crypto.js";
+import type { AuthConfig } from "../../src/auth/auth.types.js";
 
 // Never read .env or DATABASE_URL: this harness only uses explicit test settings.
 export async function createIntegrationApp(provider: AIProvider) {
@@ -74,6 +80,77 @@ export async function createIntegrationApp(provider: AIProvider) {
     }
     const repository = new ConversationRepository(pool);
     await repository.initialize();
+    const authConfig: AuthConfig = {
+      issuer: "http://localhost:4566/integration-pool",
+      clientId: "integration-client",
+      redirectUri: "http://localhost:3000/api/auth/callback",
+      logoutUri: "http://localhost:4200/",
+      allowedOrigin: "http://localhost:4200",
+      sessionSecret: Buffer.alloc(32, 6),
+      cookieName: "emilia_session",
+      cookieSecure: false,
+      sessionIdleTtlMs: 7 * 24 * 60 * 60 * 1000,
+      sessionAbsoluteTtlMs: 30 * 24 * 60 * 60 * 1000,
+      loginStateTtlMs: 10 * 60 * 1000,
+    };
+    const authRepository = new AuthRepository(pool, authConfig.sessionSecret);
+    const user = await authRepository.findOrCreateUser(
+      { issuer: authConfig.issuer, subject: "integration-student" },
+      "Integration Student",
+    );
+    const sessionCookie = "integration-session-token";
+    const secondSessionCookie = "integration-second-session-token";
+    const sessionNow = new Date("2026-11-15T18:00:00.000Z");
+    await authRepository.createSession({
+      sessionHash: hashToken(sessionCookie),
+      userId: user.id,
+      providerTokens: {
+        accessToken: "integration-access-token",
+        refreshToken: "integration-refresh-token",
+        accessTokenExpiresAt: new Date("2099-01-01T00:00:00.000Z"),
+      },
+      createdAt: sessionNow,
+      lastSeenAt: sessionNow,
+      expiresAt: new Date("2099-01-01T00:00:00.000Z"),
+      absoluteExpiresAt: new Date("2099-01-02T00:00:00.000Z"),
+      revokedAt: null,
+    });
+    const secondUser = await authRepository.findOrCreateUser(
+      { issuer: authConfig.issuer, subject: "integration-second-student" },
+      "Integration Second Student",
+    );
+    await authRepository.createSession({
+      sessionHash: hashToken(secondSessionCookie),
+      userId: secondUser.id,
+      providerTokens: {
+        accessToken: "integration-second-access-token",
+        refreshToken: "integration-second-refresh-token",
+        accessTokenExpiresAt: new Date("2099-01-01T00:00:00.000Z"),
+      },
+      createdAt: sessionNow,
+      lastSeenAt: sessionNow,
+      expiresAt: new Date("2099-01-01T00:00:00.000Z"),
+      absoluteExpiresAt: new Date("2099-01-02T00:00:00.000Z"),
+      revokedAt: null,
+    });
+    const authService = new AuthService(
+      authConfig,
+      authRepository,
+      {
+        getAuthorizationUrl: async () => "http://localhost:4500",
+        exchangeCode: async () => {
+          throw new Error("Integration fixture does not perform browser login");
+        },
+        validateIdTokenNonce: async () => undefined,
+        refresh: async () => {
+          throw new Error("Integration fixture refresh was not expected");
+        },
+        revoke: async () => undefined,
+        getUserInfo: async () => ({}),
+      },
+      { verify: async () => { throw new Error("Integration fixture token refresh was not expected"); } },
+      () => sessionNow,
+    );
     const sandbox = new SandboxClient(sandboxUrl);
     const verifier = new MathVerificationService(provider, sandbox);
     const attachmentService = new AttachmentService(
@@ -84,6 +161,7 @@ export async function createIntegrationApp(provider: AIProvider) {
     await app.register(multipart, {
       limits: { files: 1, fileSize: configuredPdfMaxBytes() },
     });
+    registerAuthPlugin(app, { config: authConfig, service: authService });
     registerChatRoutes(
       app,
       new ChatService(repository, provider, verifier, attachmentService),
@@ -92,7 +170,20 @@ export async function createIntegrationApp(provider: AIProvider) {
     registerAttachmentRoutes(app, attachmentService);
     registerAnalyticsRoutes(app, repository);
     await app.ready();
-    return { app, close };
+    async function injectAs(session: string, options: InjectOptions) {
+      const method = String(options.method ?? "GET").toUpperCase();
+      const incomingHeaders = { ...(options.headers ?? {}) } as Record<string, string>;
+      const csrfRequired = ["POST", "PUT", "PATCH", "DELETE"].includes(method);
+      incomingHeaders.cookie = `emilia_session=${session}; emilia_csrf=integration-csrf`;
+      if (csrfRequired) {
+        incomingHeaders.origin = authConfig.allowedOrigin;
+        incomingHeaders["x-csrf-token"] = "integration-csrf";
+      }
+      return app.inject({ ...options, headers: incomingHeaders });
+    }
+    const inject = (options: InjectOptions) => injectAs(sessionCookie, options);
+    const injectAsSecondUser = (options: InjectOptions) => injectAs(secondSessionCookie, options);
+    return { app, inject, injectAsSecondUser, close, userId: user.id, secondUserId: secondUser.id };
   } catch (error) {
     await close();
     throw error;

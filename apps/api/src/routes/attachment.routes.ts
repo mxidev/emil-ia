@@ -28,14 +28,14 @@ export function registerAttachmentRoutes(
   app: FastifyInstance,
   service: AttachmentRouteService,
 ): void {
-  app.post("/api/conversations/:id/attachments", async (request, reply) => {
+  app.post("/api/conversations/:id/attachments", { preHandler: [app.authenticate, app.requireCsrf] }, async (request, reply) => {
     try {
       const file = await request.file();
       if (!file) return reply.badRequest("A PDF file is required");
 
       const content = await file.toBuffer();
       const { id } = request.params as { id: string };
-      const attachment = await service.upload(id, {
+      const attachment = await service.upload(request.authUser!.id, id, {
         filename: file.filename,
         mimetype: file.mimetype,
         content,
@@ -46,10 +46,10 @@ export function registerAttachmentRoutes(
     }
   });
 
-  app.get("/api/conversations/:id/attachments", async (request, reply) => {
+  app.get("/api/conversations/:id/attachments", { preHandler: app.authenticate }, async (request, reply) => {
     try {
       const { id } = request.params as { id: string };
-      return await service.list(id);
+      return await service.list(request.authUser!.id, id);
     } catch (error) {
       return sendAttachmentError(reply, error);
     }
@@ -57,13 +57,14 @@ export function registerAttachmentRoutes(
 
   app.delete(
     "/api/conversations/:id/attachments/:attachmentId",
+    { preHandler: [app.authenticate, app.requireCsrf] },
     async (request, reply) => {
       try {
         const { id, attachmentId } = request.params as {
           id: string;
           attachmentId: string;
         };
-        await service.deleteAttachment(id, attachmentId);
+        await service.deleteAttachment(request.authUser!.id, id, attachmentId);
         return reply.code(204).send();
       } catch (error) {
         return sendAttachmentError(reply, error);

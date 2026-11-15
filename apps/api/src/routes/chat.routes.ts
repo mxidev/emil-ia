@@ -1,13 +1,13 @@
 import { ChatRequestSchema } from "@emil-ia/contracts";
 import type { FastifyInstance } from "fastify";
 import { AttachmentServiceError } from "../services/attachment.service.js";
-import type { ChatService } from "../services/chat.service.js";
+import { ConversationNotFoundError, type ChatService } from "../services/chat.service.js";
 
 export function registerChatRoutes(
   app: FastifyInstance,
   chat: ChatService,
 ): void {
-  app.post("/api/chat", async (request, reply) => {
+  app.post("/api/chat", { preHandler: [app.authenticate, app.requireCsrf] }, async (request, reply) => {
     const parsed = ChatRequestSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.badRequest(JSON.stringify(parsed.error.flatten()));
@@ -17,12 +17,16 @@ export function registerChatRoutes(
     let context;
     try {
       context = await chat.prepare(
+        request.authUser!.id,
         parsed.data.content,
         parsed.data.conversationId,
         parsed.data.attachmentIds,
       );
     } catch (error) {
       if (error instanceof AttachmentServiceError) {
+        return reply.code(error.statusCode).send({ error: error.message });
+      }
+      if (error instanceof ConversationNotFoundError) {
         return reply.code(error.statusCode).send({ error: error.message });
       }
       throw error;
@@ -49,6 +53,7 @@ export function registerChatRoutes(
           );
         } else if (event.type === "done") {
           await chat.complete({
+            userId: request.authUser!.id,
             executionId: event.executionId,
             conversationId: context.conversationId,
             content: answer,

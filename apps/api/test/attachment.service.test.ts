@@ -12,6 +12,7 @@ import type {
 } from "../src/interfaces/persistence.interface.js";
 
 const conversationId = "00000000-0000-4000-8000-000000000001";
+const userId = "student-a";
 const attachmentId = "00000000-0000-4000-8000-000000000002";
 const otherAttachmentId = "00000000-0000-4000-8000-000000000003";
 const pdf = Buffer.from("%PDF-1.7\nfixture");
@@ -50,7 +51,7 @@ function setup(options?: {
 }) {
   const created: NewAttachment[] = [];
   const repository = {
-    findConversationTitle: vi.fn(async (id: string) =>
+    findConversationTitle: vi.fn(async (_userId: string, id: string) =>
       id === conversationId ? "Conversación" : null,
     ),
     createAttachment: vi.fn(async (data: NewAttachment) => {
@@ -65,9 +66,9 @@ function setup(options?: {
         extractionError: data.extractionError,
       });
     }),
-    listAttachments: vi.fn(async () => [metadata()]),
-    getAttachmentsForChat: vi.fn(async () => options?.attachments ?? []),
-    deleteAttachment: vi.fn(async () => true),
+    listAttachments: vi.fn(async (_userId: string, _id: string) => [metadata()]),
+    getAttachmentsForChat: vi.fn(async (_userId: string, _id: string, _ids: string[]) => options?.attachments ?? []),
+    deleteAttachment: vi.fn(async (_userId: string, _id: string, _attachmentId: string) => true),
   };
   const extractor: PdfTextExtractor = {
     extract: options?.extract ?? (async () => "Texto extraído"),
@@ -87,7 +88,7 @@ describe("AttachmentService", () => {
   it("persists a valid PDF with sanitized metadata and extracted text", async () => {
     const { service, created } = setup();
 
-    const result = await service.upload(conversationId, {
+    const result = await service.upload(userId, conversationId, {
       filename: "../notas\u0000.pdf",
       mimetype: "application/pdf",
       content: pdf,
@@ -108,7 +109,7 @@ describe("AttachmentService", () => {
     const { service, repository } = setup();
 
     await expect(
-      service.upload(conversationId, {
+      service.upload(userId, conversationId, {
         filename: "large.pdf",
         mimetype: "application/pdf",
         content: Buffer.concat([pdf, Buffer.alloc(10 * 1024 * 1024)]),
@@ -121,14 +122,14 @@ describe("AttachmentService", () => {
     const { service, repository } = setup();
 
     await expect(
-      service.upload(conversationId, {
+      service.upload(userId, conversationId, {
         filename: "notes.pdf",
         mimetype: "text/plain",
         content: pdf,
       }),
     ).rejects.toBeInstanceOf(AttachmentValidationError);
     await expect(
-      service.upload(conversationId, {
+      service.upload(userId, conversationId, {
         filename: "notes.pdf",
         mimetype: "application/pdf",
         content: Buffer.from("plain text"),
@@ -144,7 +145,7 @@ describe("AttachmentService", () => {
       },
     });
 
-    const result = await service.upload(conversationId, {
+    const result = await service.upload(userId, conversationId, {
       filename: "broken.pdf",
       mimetype: "application/pdf",
       content: pdf,
@@ -164,7 +165,7 @@ describe("AttachmentService", () => {
   it("marks PDFs without extractable text as failed", async () => {
     const { service, created } = setup({ extract: async () => "" });
 
-    const result = await service.upload(conversationId, {
+    const result = await service.upload(userId, conversationId, {
       filename: "scan.pdf",
       mimetype: "application/pdf",
       content: pdf,
@@ -177,19 +178,20 @@ describe("AttachmentService", () => {
   it("lists metadata without returning PDF bytes", async () => {
     const { service, repository } = setup();
 
-    const result = await service.list(conversationId);
+    const result = await service.list(userId, conversationId);
 
     expect(result).toEqual([metadata()]);
     expect(result[0]).not.toHaveProperty("content");
-    expect(repository.listAttachments).toHaveBeenCalledWith(conversationId);
+    expect(repository.listAttachments).toHaveBeenCalledWith(userId, conversationId);
   });
 
   it("deletes an attachment only within its conversation", async () => {
     const { service, repository } = setup();
 
-    await service.deleteAttachment(conversationId, attachmentId);
+    await service.deleteAttachment(userId, conversationId, attachmentId);
 
     expect(repository.deleteAttachment).toHaveBeenCalledWith(
+      userId,
       conversationId,
       attachmentId,
     );
@@ -200,7 +202,7 @@ describe("AttachmentService", () => {
     repository.deleteAttachment.mockResolvedValue(false);
 
     await expect(
-      service.deleteAttachment(conversationId, otherAttachmentId),
+      service.deleteAttachment(userId, conversationId, otherAttachmentId),
     ).rejects.toMatchObject({ statusCode: 404 });
   });
 
@@ -211,7 +213,7 @@ describe("AttachmentService", () => {
       ],
     });
 
-    await expect(service.getContext(conversationId, [attachmentId])).rejects.toMatchObject({
+    await expect(service.getContext(userId, conversationId, [attachmentId])).rejects.toMatchObject({
       statusCode: 404,
     });
   });
@@ -224,7 +226,7 @@ describe("AttachmentService", () => {
       ],
     });
 
-    const context = await service.getContext(conversationId, [attachmentId]);
+    const context = await service.getContext(userId, conversationId, [attachmentId]);
 
     expect(context).toHaveLength(1);
     expect(context[0].content).toContain("123456789012");
@@ -246,7 +248,7 @@ describe("AttachmentService", () => {
       ],
     });
 
-    const context = await service.getContext(conversationId, [
+    const context = await service.getContext(userId, conversationId, [
       attachmentId,
       otherAttachmentId,
     ]);
@@ -269,7 +271,7 @@ describe("AttachmentService", () => {
       attachments: [storedAttachment({ extractedText: "Referencia" })],
     });
 
-    await expect(service.getContext(conversationId, [attachmentId])).resolves.toEqual([]);
+    await expect(service.getContext(userId, conversationId, [attachmentId])).resolves.toEqual([]);
   });
 
   it("falls back to the default global context budget for invalid configuration", () => {
@@ -284,7 +286,7 @@ describe("AttachmentService", () => {
     const { service } = setup();
     const ids = Array.from({ length: 6 }, () => crypto.randomUUID());
 
-    await expect(service.getContext(conversationId, ids)).rejects.toMatchObject({
+    await expect(service.getContext(userId, conversationId, ids)).rejects.toMatchObject({
       statusCode: 400,
     });
   });

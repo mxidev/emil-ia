@@ -8,9 +8,35 @@ import {
   AttachmentValidationError,
 } from "../src/services/attachment.service.js";
 import { registerAttachmentRoutes } from "../src/routes/attachment.routes.js";
+import { registerAuthPlugin } from "../src/auth/auth.plugin.js";
+import type { AuthConfig, AuthenticatedUser } from "../src/auth/auth.types.js";
 import type { AttachmentMetadata } from "@emil-ia/contracts";
 
 const conversationId = "00000000-0000-4000-8000-000000000001";
+const config: AuthConfig = {
+  issuer: "http://localhost:4566/pool-123",
+  clientId: "client-123",
+  redirectUri: "http://localhost:3000/api/auth/callback",
+  logoutUri: "http://localhost:4200/",
+  allowedOrigin: "http://localhost:4200",
+  sessionSecret: Buffer.alloc(32, 8),
+  cookieName: "emilia_session",
+  cookieSecure: false,
+  sessionIdleTtlMs: 1000,
+  sessionAbsoluteTtlMs: 2000,
+  loginStateTtlMs: 1000,
+};
+const user: AuthenticatedUser = {
+  id: "student-a",
+  displayName: "Student A",
+  issuer: config.issuer,
+  subject: "student-a-subject",
+};
+const authHeaders = {
+  cookie: "emilia_session=session-token; emilia_csrf=csrf-token",
+  "x-csrf-token": "csrf-token",
+  origin: config.allowedOrigin,
+};
 const metadata: AttachmentMetadata = {
   id: "00000000-0000-4000-8000-000000000002",
   conversationId,
@@ -48,6 +74,7 @@ async function createApp(service: {
   await app.register(multipart, {
     limits: { files: 1, fileSize: 10 * 1024 * 1024 },
   });
+  registerAuthPlugin(app, { config, service: { getSession: async () => user } });
   registerAttachmentRoutes(app, service as never);
   await app.ready();
   return app;
@@ -73,13 +100,14 @@ describe("attachment routes", () => {
     const response = await app.inject({
       method: "POST",
       url: `/api/conversations/${conversationId}/attachments`,
-      headers: { "content-type": upload.contentType },
+      headers: { ...authHeaders, "content-type": upload.contentType },
       payload: upload.body,
     });
 
     expect(response.statusCode).toBe(201);
     expect(response.json()).toEqual(metadata);
     expect(service.upload).toHaveBeenCalledWith(
+      "student-a",
       conversationId,
       expect.objectContaining({
         filename: "notes.pdf",
@@ -100,6 +128,7 @@ describe("attachment routes", () => {
     const response = await app.inject({
       method: "GET",
       url: `/api/conversations/${conversationId}/attachments`,
+      headers: authHeaders,
     });
 
     expect(response.statusCode).toBe(200);
@@ -122,13 +151,13 @@ describe("attachment routes", () => {
     const invalid = await app.inject({
       method: "POST",
       url: `/api/conversations/${conversationId}/attachments`,
-      headers: { "content-type": upload.contentType },
+      headers: { ...authHeaders, "content-type": upload.contentType },
       payload: upload.body,
     });
     const missing = await app.inject({
       method: "POST",
       url: `/api/conversations/${conversationId}/attachments`,
-      headers: { "content-type": upload.contentType },
+      headers: { ...authHeaders, "content-type": upload.contentType },
       payload: upload.body,
     });
 
@@ -149,7 +178,7 @@ describe("attachment routes", () => {
     const response = await app.inject({
       method: "POST",
       url: `/api/conversations/${conversationId}/attachments`,
-      headers: { "content-type": upload.contentType },
+      headers: { ...authHeaders, "content-type": upload.contentType },
       payload: upload.body,
     });
 
@@ -169,7 +198,7 @@ describe("attachment routes", () => {
     const response = await app.inject({
       method: "POST",
       url: `/api/conversations/${conversationId}/attachments`,
-      headers: { "content-type": upload.contentType },
+      headers: { ...authHeaders, "content-type": upload.contentType },
       payload: upload.body,
     });
 
@@ -188,10 +217,12 @@ describe("attachment routes", () => {
     const response = await app.inject({
       method: "DELETE",
       url: `/api/conversations/${conversationId}/attachments/${metadata.id}`,
+      headers: authHeaders,
     });
 
     expect(response.statusCode).toBe(204);
     expect(service.deleteAttachment).toHaveBeenCalledWith(
+      "student-a",
       conversationId,
       metadata.id,
     );

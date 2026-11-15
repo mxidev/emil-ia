@@ -5,5 +5,9 @@ export function registerAnalyticsRoutes(
   app: FastifyInstance,
   repository: ConversationRepository,
 ): void {
-  app.get("/api/analytics/summary", () => repository.getAnalyticsSummary());
+  app.get(
+    "/api/analytics/summary",
+    { preHandler: app.authenticate },
+    (request) => repository.getAnalyticsSummary(request.authUser!.id),
+  );
 }

@@ -1,6 +1,6 @@
 export const DATABASE_QUERIES = {
   upsertAuthUser:
-    'INSERT INTO users (id, display_name, auth_issuer, auth_subject) VALUES ($1, $2, $3, $4) ON CONFLICT (auth_issuer, auth_subject) DO UPDATE SET display_name = EXCLUDED.display_name RETURNING id, display_name AS "displayName", auth_issuer AS "authIssuer", auth_subject AS "authSubject"',
+    'INSERT INTO users (id, display_name, auth_issuer, auth_subject) VALUES ($1, $2, $3, $4) ON CONFLICT (auth_issuer, auth_subject) WHERE auth_issuer IS NOT NULL AND auth_subject IS NOT NULL DO UPDATE SET display_name = EXCLUDED.display_name RETURNING id, display_name AS "displayName", auth_issuer AS "authIssuer", auth_subject AS "authSubject"',
   findAuthUserById:
     'SELECT id, display_name AS "displayName", auth_issuer AS "authIssuer", auth_subject AS "authSubject" FROM users WHERE id = $1 AND auth_issuer IS NOT NULL AND auth_subject IS NOT NULL',
   createLoginTransaction:
@@ -22,27 +22,27 @@ export const DATABASE_QUERIES = {
   createConversation:
     "INSERT INTO conversations (id, user_id, title) VALUES ($1, $2, $3)",
   addMessage:
-    "INSERT INTO messages (id, conversation_id, role, content) VALUES ($1, $2, $3, $4)",
+    "INSERT INTO messages (id, conversation_id, role, content) SELECT $1, $2, $3, $4 WHERE EXISTS (SELECT 1 FROM conversations WHERE id = $2 AND user_id = $5)",
   touchConversation:
-    "UPDATE conversations SET updated_at = now() WHERE id = $1",
+    "UPDATE conversations SET updated_at = now() WHERE id = $1 AND user_id = $2",
   getMessages:
-    "SELECT role, content FROM messages WHERE conversation_id = $1 ORDER BY created_at ASC",
+    "SELECT m.role, m.content FROM messages m JOIN conversations c ON c.id = m.conversation_id WHERE m.conversation_id = $1 AND c.user_id = $2 ORDER BY m.created_at ASC",
   recordExecution:
-    "INSERT INTO model_executions (id, conversation_id, provider, model, profile, intent, latency_ms, input_tokens, output_tokens, metadata) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+    "INSERT INTO model_executions (id, conversation_id, provider, model, profile, intent, latency_ms, input_tokens, output_tokens, metadata) SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10 WHERE EXISTS (SELECT 1 FROM conversations WHERE id = $2 AND user_id = $11)",
   listConversations:
     'SELECT id, title, created_at AS "createdAt", updated_at AS "updatedAt" FROM conversations WHERE user_id = $1 ORDER BY updated_at DESC',
   findConversationTitle:
     "SELECT title FROM conversations WHERE id = $1 AND user_id = $2",
   addFeedback:
-    "INSERT INTO conversation_feedback (id, conversation_id, rating, category) VALUES ($1, $2, $3, $4)",
+    "INSERT INTO conversation_feedback (id, conversation_id, rating, category) SELECT $1, $2, $3, $4 WHERE EXISTS (SELECT 1 FROM conversations WHERE id = $2 AND user_id = $5)",
   createAttachment:
-    'INSERT INTO attachments (id, conversation_id, filename, mime_type, byte_size, content, extracted_text, status, extraction_error) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, conversation_id AS "conversationId", filename, mime_type AS "mimeType", byte_size AS "byteSize", status, extraction_error AS "extractionError", created_at AS "createdAt", updated_at AS "updatedAt"',
+    'INSERT INTO attachments (id, conversation_id, filename, mime_type, byte_size, content, extracted_text, status, extraction_error) SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9 WHERE EXISTS (SELECT 1 FROM conversations WHERE id = $2 AND user_id = $10) RETURNING id, conversation_id AS "conversationId", filename, mime_type AS "mimeType", byte_size AS "byteSize", status, extraction_error AS "extractionError", created_at AS "createdAt", updated_at AS "updatedAt"',
   listAttachments:
-    'SELECT id, conversation_id AS "conversationId", filename, mime_type AS "mimeType", byte_size AS "byteSize", status, extraction_error AS "extractionError", created_at AS "createdAt", updated_at AS "updatedAt" FROM attachments WHERE conversation_id = $1 ORDER BY created_at ASC',
+    'SELECT a.id, a.conversation_id AS "conversationId", a.filename, a.mime_type AS "mimeType", a.byte_size AS "byteSize", a.status, a.extraction_error AS "extractionError", a.created_at AS "createdAt", a.updated_at AS "updatedAt" FROM attachments a JOIN conversations c ON c.id = a.conversation_id WHERE a.conversation_id = $1 AND c.user_id = $2 ORDER BY a.created_at ASC',
   deleteAttachment:
-    "DELETE FROM attachments WHERE conversation_id = $1 AND id = $2 RETURNING id",
+    "DELETE FROM attachments a USING conversations c WHERE a.conversation_id = $1 AND a.id = $2 AND c.id = a.conversation_id AND c.user_id = $3 RETURNING a.id",
   getAttachmentsForChat:
-    'SELECT id, conversation_id AS "conversationId", filename, mime_type AS "mimeType", byte_size AS "byteSize", content, extracted_text AS "extractedText", status, extraction_error AS "extractionError", created_at AS "createdAt", updated_at AS "updatedAt" FROM attachments WHERE conversation_id = $1 AND id = ANY($2::uuid[]) ORDER BY created_at ASC, id ASC',
+    'SELECT a.id, a.conversation_id AS "conversationId", a.filename, a.mime_type AS "mimeType", a.byte_size AS "byteSize", a.content, a.extracted_text AS "extractedText", a.status, a.extraction_error AS "extractionError", a.created_at AS "createdAt", a.updated_at AS "updatedAt" FROM attachments a JOIN conversations c ON c.id = a.conversation_id WHERE a.conversation_id = $1 AND a.id = ANY($2::uuid[]) AND c.user_id = $3 ORDER BY a.created_at ASC, a.id ASC',
   countConversations:
     "SELECT count(*)::text AS count FROM conversations WHERE user_id = $1",
   countMessages:

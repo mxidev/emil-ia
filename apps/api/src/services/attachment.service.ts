@@ -111,10 +111,11 @@ export class AttachmentService {
   }
 
   async upload(
+    userId: string,
     conversationId: string,
     file: { filename: string; mimetype: string; content: Buffer },
   ): Promise<AttachmentMetadata> {
-    if (!(await this.repository.findConversationTitle(conversationId))) {
+    if (!(await this.repository.findConversationTitle(userId, conversationId))) {
       throw new AttachmentNotFoundError("Conversation not found");
     }
     if (file.content.length > this.maxBytes) {
@@ -142,6 +143,7 @@ export class AttachmentService {
     }
 
     return this.repository.createAttachment({
+      userId,
       id: crypto.randomUUID(),
       conversationId,
       filename: sanitizeFilename(file.filename),
@@ -154,18 +156,20 @@ export class AttachmentService {
     });
   }
 
-  async list(conversationId: string): Promise<AttachmentMetadata[]> {
-    if (!(await this.repository.findConversationTitle(conversationId))) {
+  async list(userId: string, conversationId: string): Promise<AttachmentMetadata[]> {
+    if (!(await this.repository.findConversationTitle(userId, conversationId))) {
       throw new AttachmentNotFoundError("Conversation not found");
     }
-    return this.repository.listAttachments(conversationId);
+    return this.repository.listAttachments(userId, conversationId);
   }
 
   async deleteAttachment(
+    userId: string,
     conversationId: string,
     attachmentId: string,
   ): Promise<void> {
     const deleted = await this.repository.deleteAttachment(
+      userId,
       conversationId,
       attachmentId,
     );
@@ -175,6 +179,7 @@ export class AttachmentService {
   }
 
   async getContext(
+    userId: string,
     conversationId: string,
     ids: string[],
   ): Promise<AIRequest["messages"]> {
@@ -186,6 +191,7 @@ export class AttachmentService {
     if (ids.length === 0) return [];
 
     const attachments = await this.repository.getAttachmentsForChat(
+      userId,
       conversationId,
       ids,
     );

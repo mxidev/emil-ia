@@ -7,26 +7,32 @@ import { MathVerificationService } from "../src/services/math-verification.servi
 import { AttachmentNotFoundError } from "../src/services/attachment.service.js";
 
 const conversationId = "00000000-0000-4000-8000-000000000001";
+const userId = "student-a";
 
 class MemoryRepository {
   readonly executions: ModelExecutionRecord[] = [];
   readonly messages: Array<{ role: "user" | "assistant"; content: string }> =
     [];
 
-  async createConversation(): Promise<void> {}
+  async createConversation(_userId: string, _conversationId: string, _title: string): Promise<void> {}
 
-  async getMessages() {
+  async getMessages(_userId: string, _conversationId: string) {
     return [...this.messages];
   }
 
+  async findConversationTitle(_userId: string, _conversationId: string) {
+    return "Test conversation";
+  }
+
   async addMessage(
+    _userId: string,
     _conversationId: string,
     message: { role: "user" | "assistant"; content: string },
   ): Promise<void> {
     this.messages.push(message);
   }
 
-  async recordExecution(data: ModelExecutionRecord): Promise<void> {
+  async recordExecution(_userId: string, data: ModelExecutionRecord): Promise<void> {
     this.executions.push(data);
   }
 }
@@ -68,14 +74,14 @@ describe("ChatService math verification", () => {
       contextualProvider(),
       { verify: async () => ({ status: "not_applicable" as const }) },
       {
-        getContext: async () => {
+        getContext: async (_userId: string, _conversationId: string, _ids: string[]) => {
           throw new AttachmentNotFoundError("Attachment not found in conversation");
         },
       },
     );
 
     await expect(
-      chat.prepare("Resume el PDF", conversationId, [
+      chat.prepare(userId, "Resume el PDF", conversationId, [
         "00000000-0000-4000-8000-000000000002",
       ]),
     ).rejects.toBeInstanceOf(AttachmentNotFoundError);
@@ -86,7 +92,7 @@ describe("ChatService math verification", () => {
     const verificationMessages: AIRequest["messages"][] = [];
     const providerRequests: AIRequest[] = [];
     const attachmentContext = {
-      getContext: async () => [
+      getContext: async (_userId: string, _conversationId: string, _ids: string[]) => [
         {
           role: "system" as const,
           content: "Document reference: método de Euler",
@@ -119,6 +125,7 @@ describe("ChatService math verification", () => {
     );
 
     const prepared = await chat.prepare(
+      userId,
       "Resume el método",
       conversationId,
       ["00000000-0000-4000-8000-000000000002"],
@@ -156,15 +163,15 @@ describe("ChatService math verification", () => {
       run: async () => ({ ok: true, variables: { result: "42" } }),
     });
     const chat = new ChatService(new MemoryRepository(), provider, verifier);
-    const first = await chat.prepare("Calcula 6 * 7");
+    const first = await chat.prepare(userId, "Calcula 6 * 7");
     await collect(first.events);
-    const next = await chat.prepare("Calcula 6 * 7", first.conversationId);
+    const next = await chat.prepare(userId, "Calcula 6 * 7", first.conversationId);
     await collect(next.events);
     expect(requests).toHaveLength(4);
     for (const request of requests) {
       expect(request).toMatchObject({ sessionId: first.conversationId });
     }
-    const separate = await chat.prepare("Calcula 6 * 7");
+    const separate = await chat.prepare(userId, "Calcula 6 * 7");
     await collect(separate.events);
     expect(separate.conversationId).not.toBe(first.conversationId);
     expect(requests.at(-1)).toMatchObject({
@@ -187,7 +194,7 @@ describe("ChatService math verification", () => {
       verifier as never,
     );
 
-    const prepared = await chat.prepare("Calcula 6 * 7");
+    const prepared = await chat.prepare(userId, "Calcula 6 * 7");
 
     await expect(collect(prepared.events)).resolves.toEqual([
       { type: "text", delta: "La respuesta verificada es 42." },
@@ -221,7 +228,7 @@ describe("ChatService math verification", () => {
       verifier as never,
     );
 
-    const prepared = await chat.prepare("Calcula 6 * 7");
+    const prepared = await chat.prepare(userId, "Calcula 6 * 7");
 
     await expect(collect(prepared.events)).resolves.toEqual([
       { type: "text", delta: "Respuesta sin verificar." },
@@ -244,7 +251,7 @@ describe("ChatService math verification", () => {
       }),
     );
 
-    const prepared = await chat.prepare("Demuestra que f es continua");
+    const prepared = await chat.prepare(userId, "Demuestra que f es continua");
 
     await expect(collect(prepared.events)).resolves.toEqual([
       { type: "text", delta: "Respuesta sin verificar." },
@@ -269,6 +276,7 @@ describe("ChatService math verification", () => {
     } as never);
 
     await chat.complete({
+      userId,
       executionId: "00000000-0000-4000-8000-000000000042",
       conversationId: "00000000-0000-4000-8000-000000000001",
       content: "Respuesta completa",

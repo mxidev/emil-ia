@@ -6,7 +6,7 @@ export function registerToolRoutes(
   app: FastifyInstance,
   sandbox: SandboxClient,
 ): void {
-  app.post("/api/tools/python", async (request, reply) => {
+  app.post("/api/tools/python", { preHandler: [app.authenticate, app.requireCsrf] }, async (request, reply) => {
     const parsed = SandboxRequestSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.badRequest(JSON.stringify(parsed.error.flatten()));
