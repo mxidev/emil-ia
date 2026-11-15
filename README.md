@@ -12,6 +12,18 @@ MVP de un asistente académico para matemáticas e ingeniería. La primera versi
 
 Sin una clave de proveedor, la API usa el proveedor mock y permite validar todo el flujo localmente.
 
+## Estado de una respuesta
+
+Mientras Emil-IA prepara una respuesta, el chat muestra mensajes de actividad
+rotativos y permite detener la generación con el botón `Detener`. Al detenerla,
+el texto parcial que ya se recibió permanece visible y se muestra `Respuesta
+detenida`; no se publica una notificación de error. Una nueva consulta inicia
+una generación independiente.
+
+Si la API devuelve un error estructurado, el chat muestra su mensaje al usuario
+(por ejemplo, cuando un adjunto supera un límite). Si la respuesta no contiene
+un mensaje utilizable, se muestra el código HTTP para facilitar el diagnóstico.
+
 ## Adjuntos PDF
 
 El chat permite subir PDFs a una conversación y seleccionar explícitamente sus
