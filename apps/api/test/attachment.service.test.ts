@@ -1,8 +1,9 @@
 import type { AttachmentMetadata } from "@emil-ia/contracts";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   AttachmentService,
   AttachmentValidationError,
+  configuredPdfMaxContextChars,
 } from "../src/services/attachment.service.js";
 import type { PdfTextExtractor } from "../src/services/pdf-text-extractor.js";
 import type {
@@ -45,6 +46,7 @@ function setup(options?: {
   extract?: (content: Buffer) => Promise<string>;
   attachments?: StoredAttachment[];
   maxTextChars?: number;
+  maxContextChars?: number;
 }) {
   const created: NewAttachment[] = [];
   const repository = {
@@ -72,9 +74,14 @@ function setup(options?: {
   };
   const service = new AttachmentService(repository, extractor, {
     maxTextChars: options?.maxTextChars,
+    maxContextChars: options?.maxContextChars,
   });
   return { service, repository, created };
 }
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("AttachmentService", () => {
   it("persists a valid PDF with sanitized metadata and extracted text", async () => {
@@ -223,6 +230,54 @@ describe("AttachmentService", () => {
     expect(context[0].content).toContain("123456789012");
     expect(context[0].content).not.toContain("1234567890123");
     expect(context[0].content).toContain("untrusted reference material");
+  });
+
+  it("keeps combined PDF context within the global budget and preserves delimiters", async () => {
+    const { service } = setup({
+      maxTextChars: 200,
+      maxContextChars: 650,
+      attachments: [
+        storedAttachment({ extractedText: "A".repeat(200) }),
+        storedAttachment({
+          id: otherAttachmentId,
+          filename: "second.pdf",
+          extractedText: "B".repeat(200),
+        }),
+      ],
+    });
+
+    const context = await service.getContext(conversationId, [
+      attachmentId,
+      otherAttachmentId,
+    ]);
+    const totalLength = context.reduce(
+      (total, message) => total + message.content.length,
+      0,
+    );
+
+    expect(totalLength).toBeLessThanOrEqual(650);
+    expect(context).toHaveLength(2);
+    expect(context[0].content).toContain("A".repeat(200));
+    expect(context[1].content).toContain("B");
+    expect(context[1].content).not.toContain("B".repeat(200));
+    expect(context[1].content).toContain("</attachment>");
+  });
+
+  it("omits an attachment when its framing cannot fit the remaining budget", async () => {
+    const { service } = setup({
+      maxContextChars: 100,
+      attachments: [storedAttachment({ extractedText: "Referencia" })],
+    });
+
+    await expect(service.getContext(conversationId, [attachmentId])).resolves.toEqual([]);
+  });
+
+  it("falls back to the default global context budget for invalid configuration", () => {
+    vi.stubEnv("PDF_MAX_CONTEXT_CHARS", "0");
+    expect(configuredPdfMaxContextChars()).toBe(200_000);
+
+    vi.stubEnv("PDF_MAX_CONTEXT_CHARS", "not-an-integer");
+    expect(configuredPdfMaxContextChars()).toBe(200_000);
   });
 
   it("enforces the five attachment limit when assembling context", async () => {
