@@ -21,7 +21,9 @@ test("reserves safe areas around the mobile shell and composer", () => {
   const chatStyles = read("src/app/components/chat/chat.component.css");
 
   assert.match(appStyles, /env\(safe-area-inset-top/);
+  assert.match(appStyles, /env\(safe-area-inset-(?:left|right)/);
   assert.match(chatStyles, /env\(safe-area-inset-bottom/);
+  assert.match(chatStyles, /env\(safe-area-inset-(?:left|right)/);
 });
 
 test("keeps the composer usable at narrow widths", () => {
@@ -30,6 +32,14 @@ test("keeps the composer usable at narrow widths", () => {
   assert.match(chatStyles, /@media\s*\(max-width:\s*520px\)/);
   assert.match(chatStyles, /\.composer[\s\S]*?flex-wrap:\s*wrap/);
   assert.match(chatStyles, /\.composer button[\s\S]*?min-height:\s*44px/);
+});
+
+test("keeps the PDF attachment summary at a touch-sized target", () => {
+  const chatStyles = read("src/app/components/chat/chat.component.css");
+  const summaryRule = chatStyles.match(/\.attachment-summary\s*\{([\s\S]*?)\n\}/)?.[1];
+
+  assert.ok(summaryRule, "expected a base attachment summary rule");
+  assert.match(summaryRule, /min-height:\s*44px/);
 });
 
 test("contains scroll chaining in owned scroll regions", () => {

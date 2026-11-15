@@ -187,7 +187,9 @@ small {
 
   .shell-header {
     min-height: calc(68px + env(safe-area-inset-top, 0px));
-    padding: env(safe-area-inset-top, 0px) 18px 0;
+    padding: env(safe-area-inset-top, 0px)
+      max(18px, env(safe-area-inset-right, 0px)) 0
+      max(18px, env(safe-area-inset-left, 0px));
   }
 
   .history-panel {
@@ -236,7 +238,8 @@ small {
 
 @media (max-width: 440px) {
   .shell-header {
-    padding-inline: 14px;
+    padding-inline: max(14px, env(safe-area-inset-left, 0px))
+      max(14px, env(safe-area-inset-right, 0px));
   }
 
   .brand small {
