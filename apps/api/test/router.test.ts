@@ -13,4 +13,29 @@ describe("router académico", () => {
       intent: "SUMMARIZE",
       profile: "FAST",
     }));
+
+  it("uses a neutral explanation fallback for general questions", () =>
+    expect(routePrompt("¿Por qué se usa un autovalor?")).toEqual({
+      intent: "EXPLAIN",
+      profile: "DEFAULT",
+    }));
+
+  it("classifies explicit calculation variants as verifiable math", () =>
+    expect(routePrompt("Evalúa este resultado")).toEqual({
+      intent: "SOLVE",
+      profile: "MATH",
+    }));
+
+  it("keeps proof and code priorities above calculation words", () => {
+    expect(
+      routePrompt("PRUEBA que la suma de dos funciones continuas es continua"),
+    ).toEqual({
+      intent: "PROVE",
+      profile: "MATH",
+    });
+    expect(routePrompt("Escribe un programa que calcule la media")).toEqual({
+      intent: "CODE",
+      profile: "DEFAULT",
+    });
+  });
 });

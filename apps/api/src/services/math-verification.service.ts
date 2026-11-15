@@ -25,6 +25,8 @@ const VERIFIABLE_INTENTS: ReadonlySet<Intent> = new Set([
 
 const FAILURE_FOOTER =
   "\n\n> No fue posible verificar automáticamente este cálculo; revisa el resultado antes de usarlo.";
+const PROOF_FOOTER =
+  "\n\n> Esta demostración se presenta paso a paso; revisa las hipótesis y las implicaciones antes de usarla.";
 const MOCK_FOOTER =
   "\n\n> La verificación automática requiere un proveedor de IA real configurado.";
 const PLANNER_INSTRUCTION =
@@ -48,6 +50,9 @@ export class MathVerificationService {
     messages: AIRequest["messages"],
     route: { intent: Intent; profile: Profile; sessionId?: string },
   ): Promise<MathVerificationResult> {
+    if (route.intent === "PROVE") {
+      return { status: "not_applicable", footer: PROOF_FOOTER };
+    }
     if (!VERIFIABLE_INTENTS.has(route.intent)) {
       return { status: "not_applicable" };
     }

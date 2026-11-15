@@ -26,6 +26,21 @@ describe("MathVerificationService", () => {
     ).resolves.toEqual({ status: "not_applicable" });
   });
 
+  it("adds a proof-specific caution without running the sandbox", async () => {
+    const service = new MathVerificationService(
+      { generate: async () => Promise.reject(new Error("must not run")) },
+      { run: async () => Promise.reject(new Error("must not run")) },
+    );
+
+    await expect(
+      service.verify(MESSAGES, { intent: "PROVE", profile: "MATH" }),
+    ).resolves.toEqual({
+      status: "not_applicable",
+      footer:
+        "\n\n> Esta demostración se presenta paso a paso; revisa las hipótesis y las implicaciones antes de usarla.",
+    });
+  });
+
   it("returns verified context and a safe result footer", async () => {
     const service = new MathVerificationService(
       providerReturning('{"code":"result = 6 * 7"}'),

@@ -234,6 +234,34 @@ describe("ChatService math verification", () => {
     ]);
   });
 
+  it("streams a proof-specific footer without the calculation warning", async () => {
+    const provider = contextualProvider();
+    const chat = new ChatService(
+      new MemoryRepository(),
+      provider,
+      new MathVerificationService(provider, {
+        run: async () => ({ ok: true, variables: { result: "unused" } }),
+      }),
+    );
+
+    const prepared = await chat.prepare("Demuestra que f es continua");
+
+    await expect(collect(prepared.events)).resolves.toEqual([
+      { type: "text", delta: "Respuesta sin verificar." },
+      {
+        type: "text",
+        delta:
+          "\n\n> Esta demostración se presenta paso a paso; revisa las hipótesis y las implicaciones antes de usarla.",
+      },
+      {
+        type: "done",
+        executionId: "00000000-0000-4000-8000-000000000042",
+        profile: "MATH",
+        intent: "PROVE",
+      },
+    ]);
+  });
+
   it("persists the sandbox status with the completed execution", async () => {
     const repository = new MemoryRepository();
     const chat = new ChatService(repository as never, contextualProvider(), {

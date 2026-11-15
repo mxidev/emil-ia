@@ -5,20 +5,37 @@ export function routePrompt(content: string): {
   profile: Profile;
 } {
   const text = content.toLocaleLowerCase();
+  const includesAny = (...terms: string[]) =>
+    terms.some((term) => text.includes(term));
   const intent: Intent =
-    text.includes("demuestra") || text.includes("prueba")
+    includesAny("demuestra", "demostrar", "prueba", "probar")
       ? "PROVE"
-      : text.includes("verifica") || text.includes("comprueba")
+      : includesAny("verifica", "verificar", "comprueba", "comprobar")
         ? "VERIFY"
-        : text.includes("código") || text.includes("programa")
+        : includesAny("código", "codigo", "programa")
           ? "CODE"
-          : text.includes("calcula") || text.includes("resuelve")
+          : includesAny(
+                "calcula",
+                "calcular",
+                "resuelve",
+                "resolver",
+                "evalúa",
+                "evalua",
+                "evaluar",
+                "obtén",
+                "obten",
+                "obtener el valor",
+                "determina",
+                "determinar",
+                "cuánto",
+                "cuanto",
+              )
             ? "SOLVE"
-            : text.includes("resume") || text.includes("resumir")
+            : includesAny("resume", "resumir")
               ? "SUMMARIZE"
-              : text.includes("explica") || text.includes("qué es")
+              : includesAny("explica", "explicar", "qué es", "que es")
                 ? "EXPLAIN"
-                : "COMPUTE";
+                : "EXPLAIN";
   const profile: Profile = ["PROVE", "VERIFY", "SOLVE", "COMPUTE"].includes(
     intent,
   )
