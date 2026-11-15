@@ -91,4 +91,14 @@ describe("loadAuthConfig", () => {
 
     expect(loadAuthConfig(env).providerLogoutUri).toBeUndefined();
   });
+
+  it("rejects provider logout endpoints with credentials or URL data", () => {
+    const env = validEnv();
+    env.AUTH_PROVIDER_LOGOUT_URI =
+      "http://localhost:4566/cognito-idp/logout?access_token=secret#fragment";
+
+    expect(() => loadAuthConfig(env)).toThrow(
+      /AUTH_PROVIDER_LOGOUT_URI must not contain credentials, query parameters, or a fragment/,
+    );
+  });
 });

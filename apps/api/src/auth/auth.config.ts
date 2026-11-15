@@ -42,6 +42,17 @@ function parsedUrl(env: NodeJS.ProcessEnv, name: string): URL {
   }
 }
 
+function providerLogoutUrl(env: NodeJS.ProcessEnv): URL | undefined {
+  if (!env.AUTH_PROVIDER_LOGOUT_URI?.trim()) return undefined;
+  const url = parsedUrl(env, "AUTH_PROVIDER_LOGOUT_URI");
+  if (url.username || url.password || url.search || url.hash) {
+    throw new Error(
+      "AUTH_PROVIDER_LOGOUT_URI must not contain credentials, query parameters, or a fragment",
+    );
+  }
+  return url;
+}
+
 function validateProductionUrls(
   nodeEnvironment: string,
   issuer: URL,
@@ -87,9 +98,7 @@ export function loadAuthConfig(env: NodeJS.ProcessEnv): AuthConfig {
   const issuerUrl = parsedUrl(env, "AUTH_ISSUER");
   const redirectUri = parsedUrl(env, "AUTH_REDIRECT_URI");
   const logoutUri = parsedUrl(env, "AUTH_LOGOUT_URI");
-  const providerLogoutUri = env.AUTH_PROVIDER_LOGOUT_URI?.trim()
-    ? parsedUrl(env, "AUTH_PROVIDER_LOGOUT_URI")
-    : undefined;
+  const providerLogoutUri = providerLogoutUrl(env);
   const allowedOrigin = parsedUrl(env, "AUTH_ALLOWED_ORIGIN");
   const cookieSecure = booleanValue(env, "AUTH_COOKIE_SECURE", nodeEnvironment === "production");
   const oidcScope = env.AUTH_OIDC_SCOPE?.trim() || "openid";
