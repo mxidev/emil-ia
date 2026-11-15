@@ -14,18 +14,24 @@ Sin una clave de proveedor, la API usa el proveedor mock y permite validar todo 
 
 ## Adjuntos PDF
 
-El chat permite subir PDFs a una conversación y seleccionar sus textos extraídos
-como material de referencia en consultas posteriores. La API guarda el archivo
-completo en PostgreSQL (`bytea`) y procesa la extracción de forma síncrona; los
-listados solo devuelven metadatos. Se aceptan únicamente PDFs de hasta 10 MiB,
-con un máximo de cinco adjuntos por consulta. Los PDFs sin texto extraíble se
-conservan con estado fallido y no se envían al modelo. Las imágenes y OCR están
-fuera de alcance por ahora.
+El chat permite subir PDFs a una conversación y seleccionar explícitamente sus
+textos extraídos como material de referencia en consultas posteriores. Al
+recargar una conversación, los adjuntos se muestran sin quedar seleccionados;
+solo los documentos que el usuario vuelva a seleccionar se envían al modelo.
+La API guarda el archivo completo en PostgreSQL (`bytea`) y procesa la
+extracción de forma síncrona; los listados solo devuelven metadatos. Se aceptan
+únicamente PDFs de hasta 10 MiB, con un máximo de cinco adjuntos por consulta.
+Los PDFs sin texto extraíble se conservan con estado fallido y no se envían al
+modelo. Las imágenes y OCR están fuera de alcance por ahora.
 
 Configura `PDF_MAX_BYTES` (por defecto `10485760`) y `PDF_MAX_TEXT_CHARS` (por
 defecto `80000`) en `.env` para ajustar el límite binario y el texto máximo que
-entra en el contexto del modelo. Al usar PostgreSQL local, estos bytes forman
-parte del tamaño de la base de datos y se eliminan junto con su conversación.
+entra en cada contexto documental. `PDF_MAX_CONTEXT_CHARS` (por defecto
+`200000`) limita el contexto agregado de todos los PDFs seleccionados,
+incluyendo sus delimitadores; cuando el presupuesto se agota, el último texto
+se trunca y los documentos posteriores se omiten. Al usar PostgreSQL local,
+estos bytes forman parte del tamaño de la base de datos y se eliminan junto con
+su conversación.
 
 ## Proveedor real y verificación matemática
 

@@ -4,6 +4,10 @@
 
 **Goal:** Let users upload PDFs to a conversation, persist the original bytes in PostgreSQL, extract text synchronously, and include selected documents in later streamed chat requests.
 
+**Estado revisado (2026-11-15):** implementación completada y verificada. Las tareas 1–7 están respaldadas por los commits `313d1fd`–`dae2da1`, con correcciones posteriores en `4508def` y `647dbb9`. La validación actual pasa con 68 tests de API, 23 de web, 2 del sandbox, 7 pruebas de integración, typecheck de API/web, build Angular y `git diff --check`.
+
+**Actualización posterior (2026-11-15):** el presupuesto global de 200.000 caracteres y la selección explícita definidos en `docs/superpowers/specs/2026-11-15-pdf-context-budget-design.md` quedaron implementados en los commits `04e30f8` y `5225297`, con documentación en el commit siguiente.
+
 **Architecture:** A thin multipart route delegates to `AttachmentService`, which validates the upload, calls a `PdfTextExtractor`, and persists metadata, bytes, and extracted text through `ConversationRepository`. Chat requests carry attachment IDs; the backend verifies conversation ownership and adds bounded, delimited extracted text to provider messages. Angular services own upload, reload, selection, and request state.
 
 **Tech Stack:** Fastify 5, `@fastify/multipart` 10.x, `pdf-parse` 2.x, TypeScript, Zod, PostgreSQL `bytea`, Angular 20 signals, Vitest, Node test runner.
