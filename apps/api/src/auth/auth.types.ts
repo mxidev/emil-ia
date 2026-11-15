@@ -22,6 +22,12 @@ export interface AuthenticatedUser extends ExternalIdentity {
   displayName: string;
 }
 
+export interface AccessTokenClaims extends ExternalIdentity {
+  clientId: string;
+  tokenUse: "access";
+  expiresAt: number;
+}
+
 export interface EncryptedSecret {
   ciphertext: string;
   iv: string;

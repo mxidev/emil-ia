@@ -21,12 +21,20 @@ import {
   configuredPdfMaxBytes,
 } from "./services/attachment.service.js";
 import { PdfParseTextExtractor } from "./services/pdf-text-extractor.js";
+import { loadAuthConfig } from "./auth/auth.config.js";
+import { AuthRepository } from "./auth/auth.repository.js";
+import { AuthService } from "./auth/auth.service.js";
+import { registerAuthPlugin } from "./auth/auth.plugin.js";
+import { OidcClient } from "./auth/oidc.client.js";
+import { AccessTokenVerifier } from "./auth/token-verifier.js";
+import { registerAuthRoutes } from "./routes/auth.routes.js";
 
 dotenv.config({ path: "../../.env" });
 
 const app = Fastify({ logger: true });
+const authConfig = loadAuthConfig(process.env);
 await app.register(cors, {
-  ...createCorsOptions(),
+  ...createCorsOptions(authConfig.allowedOrigin),
 });
 await app.register(sensible);
 await app.register(multipart, {
@@ -37,7 +45,12 @@ const provider = createProvider({
   info: (fields, message) => app.log.info(fields, message),
   error: (fields, message) => app.log.error(fields, message),
 });
-const repository = new ConversationRepository(createPostgresPool());
+const pool = createPostgresPool();
+const repository = new ConversationRepository(pool);
+const authRepository = new AuthRepository(pool, authConfig.sessionSecret);
+const oidc = new OidcClient(authConfig);
+const authVerifier = new AccessTokenVerifier(authConfig, await oidc.createKeySet());
+const authService = new AuthService(authConfig, authRepository, oidc, authVerifier);
 const sandbox = new SandboxClient();
 const mathVerification = new MathVerificationService(provider, sandbox, app.log);
 const attachmentService = new AttachmentService(
@@ -57,6 +70,8 @@ app.get("/health", async () => ({
   provider: provider.constructor.name,
   persistence: "postgresql",
 }));
+registerAuthPlugin(app, { config: authConfig, service: authService });
+registerAuthRoutes(app, { config: authConfig, service: authService });
 registerAnalyticsRoutes(app, repository);
 registerConversationRoutes(app, repository, exportService);
 registerAttachmentRoutes(app, attachmentService);

@@ -81,6 +81,20 @@ export class AuthRepository {
     };
   }
 
+  async findUserById(userId: string): Promise<AuthenticatedUser | null> {
+    const result = await this.pool.query<UserRow>(DATABASE_QUERIES.findAuthUserById, [
+      userId,
+    ]);
+    const row = result.rows[0];
+    if (!row) return null;
+    return {
+      id: row.id,
+      displayName: row.displayName,
+      issuer: row.authIssuer,
+      subject: row.authSubject,
+    };
+  }
+
   async createLoginTransaction(transaction: LoginTransaction): Promise<void> {
     await this.pool.query(DATABASE_QUERIES.createLoginTransaction, [
       transaction.stateHash,

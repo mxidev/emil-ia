@@ -1,6 +1,8 @@
 export const DATABASE_QUERIES = {
   upsertAuthUser:
     'INSERT INTO users (id, display_name, auth_issuer, auth_subject) VALUES ($1, $2, $3, $4) ON CONFLICT (auth_issuer, auth_subject) DO UPDATE SET display_name = EXCLUDED.display_name RETURNING id, display_name AS "displayName", auth_issuer AS "authIssuer", auth_subject AS "authSubject"',
+  findAuthUserById:
+    'SELECT id, display_name AS "displayName", auth_issuer AS "authIssuer", auth_subject AS "authSubject" FROM users WHERE id = $1 AND auth_issuer IS NOT NULL AND auth_subject IS NOT NULL',
   createLoginTransaction:
     "INSERT INTO auth_login_transactions (state_hash, nonce, code_verifier_ciphertext, code_verifier_iv, code_verifier_auth_tag, redirect_uri, expires_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
   consumeLoginTransaction:
