@@ -26,6 +26,16 @@ describe("router académico", () => {
       profile: "MATH",
     }));
 
+  it.each([
+    "Evalúa la situación del proyecto",
+    "Determina la situación del proyecto",
+  ])("does not treat general evaluation as calculation: %s", (prompt) =>
+    expect(routePrompt(prompt)).toEqual({
+      intent: "EXPLAIN",
+      profile: "DEFAULT",
+    }),
+  );
+
   it("keeps proof and code priorities above calculation words", () => {
     expect(
       routePrompt("PRUEBA que la suma de dos funciones continuas es continua"),

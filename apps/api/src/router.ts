@@ -7,6 +7,49 @@ export function routePrompt(content: string): {
   const text = content.toLocaleLowerCase();
   const includesAny = (...terms: string[]) =>
     terms.some((term) => text.includes(term));
+  const hasMathContext =
+    /\d/.test(text) ||
+    includesAny(
+      "resultado",
+      "expresión",
+      "expresion",
+      "ecuación",
+      "ecuacion",
+      "función",
+      "funcion",
+      "integral",
+      "derivada",
+      "valor",
+      "número",
+      "numero",
+      "operación",
+      "operacion",
+      "cálculo",
+      "calculo",
+      "fracción",
+      "fraccion",
+      "matriz",
+      "variable",
+      "incógnita",
+      "incognita",
+      "ejercicio matemático",
+      "ejercicio matematico",
+    );
+  const explicitCalculation =
+    includesAny("calcula", "calcular", "resuelve", "resolver") ||
+    (hasMathContext &&
+      includesAny(
+        "evalúa",
+        "evalua",
+        "evaluar",
+        "obtén",
+        "obten",
+        "obtener el valor",
+        "determina",
+        "determinar",
+        "cuánto",
+        "cuanto",
+      ));
   const intent: Intent =
     includesAny("demuestra", "demostrar", "prueba", "probar")
       ? "PROVE"
@@ -14,22 +57,7 @@ export function routePrompt(content: string): {
         ? "VERIFY"
         : includesAny("código", "codigo", "programa")
           ? "CODE"
-          : includesAny(
-                "calcula",
-                "calcular",
-                "resuelve",
-                "resolver",
-                "evalúa",
-                "evalua",
-                "evaluar",
-                "obtén",
-                "obten",
-                "obtener el valor",
-                "determina",
-                "determinar",
-                "cuánto",
-                "cuanto",
-              )
+          : explicitCalculation
             ? "SOLVE"
             : includesAny("resume", "resumir")
               ? "SUMMARIZE"
