@@ -12,6 +12,30 @@ MVP de un asistente académico para matemáticas e ingeniería. La primera versi
 
 Sin una clave de proveedor, la API usa el proveedor mock y permite validar todo el flujo localmente.
 
+## Autenticación local con Floci
+
+Emil-IA usa una sesión BFF opaca en la API. El navegador nunca recibe tokens de
+Cognito: el login pasa por Floci y la API conserva la sesión HttpOnly, con
+aislamiento por estudiante.
+
+Antes de iniciar la API, levanta Floci en `http://localhost:4566` y ejecuta:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/floci/setup-auth.ps1
+```
+
+El wizard crea o reutiliza el user pool y el cliente público PKCE, permite
+provisionar el primer estudiante y escribe la configuración local en `.env`.
+No imprime ni versiona el secreto de sesión. Después inicia PostgreSQL/sandbox,
+la API y Angular como en el inicio rápido.
+
+El primer corte usa cuentas provisionadas administrativamente; el managed login
+local de Floci no ofrece registro público ni recuperación de contraseña. Sus
+sesiones se mantienen en memoria, por lo que al reiniciar Floci puede ser
+necesario iniciar sesión otra vez. Consulta la [documentación Cognito de
+Floci](https://github.com/floci-io/floci/blob/main/docs/services/cognito.md) para
+los detalles del emulador local.
+
 ## Accesibilidad y uso móvil
 
 El frontend incluye un enlace `Saltar al contenido`, landmarks y headings
