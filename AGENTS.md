@@ -49,6 +49,12 @@ El MVP ya incluye streaming SSE, proveedores mock/OpenCode Go, perfiles, routing
 
 ## Backlog
 
+El punto cloud/auth queda parcialmente completado: autenticacion, autorizacion,
+aislamiento por estudiante y logout federado ya funcionan con Floci local. El
+siguiente hito de esta linea es consolidar persistencia, secretos,
+observabilidad y reprovisionamiento usando las capacidades AWS-shaped de Floci.
+El alcance detallado queda en `docs/research/2026-11-15-floci-cloud-auth-next-hito.md`.
+
 1. Operar OpenCode Go con métricas de coste, latencia, errores, límites y calidad.
 2. Ampliar tests de integración para adjuntos, proveedor, memoria y sandbox.
 3. Preparar cloud/Supabase, autenticación, autorización, backups y secretos.
